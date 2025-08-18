@@ -1,0 +1,60 @@
+{
+  "languageserver": {
+    "clangd": {
+      "command": "clangd",
+      "args": ["--background-index", "--clang-tidy", "--header-insertion=iwyu"],
+      "filetypes": [
+        "c",
+        "cpp",
+        "objc",
+        "objcpp",
+        "json",
+        "cc",
+        "lua",
+        "markdown",
+        "md"
+      ],
+      "rootPatterns": [".clangd", "compile_commands.json", ".git/"],
+      "initializationOptions": {
+        "clangdFileStatus": true,
+        "semanticHighlighting": true
+      }
+    }
+  },
+  "semanticTokens.enable": true,
+  "clangd.semanticHighlighting": true,
+  "coc.preferences.semanticTokens.highlight": true,
+  "diagnostic.virtualText": true,
+  "diagnostic.virtualTextCurrentLineOnly": false,
+  "coc.preferences.messageLevel": "error",
+  "suggest.autoTrigger": "always",
+  "suggest.triggerAfterInsertEnter": true,
+  "suggest.maxCompleteItemCount": 20,
+  "diagnostic.errorSign": "✗",
+  "diagnostic.warningSign": "⚠",
+  "diagnostic.infoSign": "ℹ",
+  "diagnostic.hintSign": "➤",
+  "diagnostic.displayByAle": false,
+  "diagnostic.refreshOnInsertMode": false,
+  "diagnostic.checkCurrentLine": true,
+  "diagnostic.autoFixOnSave": false,
+  "snippets.ultisnips.pythonPrompt": false,
+  "markdownlint.config": {
+    "default": true
+  },
+  "ultisnips.directories": ["~/.config/coc/ultisnips"],
+  "prettier.enable": true,
+  "prettier.requireConfig": false,
+  "[markdown]": {
+    "coc.preferences.formatOnSave": true
+  },
+
+  "languageserver": {
+    "yaml": {
+      "command": "yaml-language-server",
+      "args": ["--stdio"],
+      "filetypes": ["yaml", "yml"]
+    }
+  },
+  "coc.preferences.formatOnSaveFiletypes": ["yaml", "yml"]
+}
