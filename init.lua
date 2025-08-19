@@ -235,39 +235,51 @@ end
 
 vim.keymap.set("n", "<leader>rn", linux_rename_in_place, { desc = "重命名当前文件" })
 
--- ==========重构粘贴复制================
--- 将 p 映射为粘贴复制寄存器 ("0) 的内容
-vim.keymap.set("n", "p", '"0p', { noremap = true })
-vim.keymap.set("v", "p", '"0p', { noremap = true })
-vim.keymap.set("n", "P", '"0P', { noremap = true })
-vim.keymap.set("v", "P", '"0P', { noremap = true })
+-- ========== 重构粘贴复制 ==========
 
--- 使用原始无名寄存器
-vim.keymap.set("n", "<space>p", '""p', { noremap = true })
-vim.keymap.set("v", "<space>p", '""p', { noremap = true })
+-- 将 p/P 映射为粘贴复制寄存器 ("0) 的内容
+for _, mode in ipairs({ "n", "v" }) do
+    vim.keymap.set(mode, "p", '""p', { noremap = true })
+    vim.keymap.set(mode, "P", '""P', { noremap = true })
+    vim.keymap.set(mode, "<space>p", '"0p', { noremap = true })
+    -- 系统剪贴板专用粘贴
+    vim.keymap.set(mode, "<leader>p", '"*p', { noremap = true })
+    vim.keymap.set(mode, "<leader>P", '"*P', { noremap = true })
+end
 
--- 系统剪贴板专用粘贴
-vim.keymap.set("n", "<leader>p", '"*p', { noremap = true })
-vim.keymap.set("v", "<leader>p", '"*p', { noremap = true })
-vim.keymap.set("n", "<leader>P", '"*P', { noremap = true })
-vim.keymap.set("v", "<leader>P", '"*P', { noremap = true })
-
--- 系统剪贴板专用复制
-vim.keymap.set("n", "<leader>y", '"+y', { noremap = true })
-vim.keymap.set("v", "<leader>y", '"+y', { noremap = true })
+-- 复制到系统粘贴板
+local function copy_to_clipboard()
+    local mode = vim.fn.mode()
+    local lines_copied = 1
+    if mode == 'v' or mode == 'V' or mode == '\22' then
+        -- 可视模式或有选区时复制选区
+        vim.cmd('normal! "+y')
+        local start_line = vim.fn.line("v")
+        local end_line = vim.fn.line(".")
+        lines_copied = math.abs(end_line - start_line) + 1
+    else
+        -- 否则复制当前行
+        vim.cmd('normal! "+yy')
+    end
+    vim.fn.setreg('*', vim.fn.getreg('+'))
+    local msg = string.format("Copied %d line%s to system clipboard!", lines_copied, lines_copied > 1 and "s" or "")
+    vim.api.nvim_echo({ { msg, "Comment" } }, false, {})
+    vim.defer_fn(function()
+        vim.api.nvim_echo({ { "" } }, false, {})
+        vim.cmd("redraw")
+    end, 500) -- 反馈存在 1 秒
+end
+vim.keymap.set({ 'n', 'v' }, '<leader>y', copy_to_clipboard, { noremap = true, silent = true })
 
 -- 插入模式粘贴
 vim.keymap.set("i", "<C-p>", "<C-r>0", { noremap = true })
 
--- 粘贴反馈函数
-local function paste_feedback()
-    vim.api.nvim_echo({ { "Pasted yank", "Comment" } }, false, {})
-    vim.cmd('normal! "+p')
-    vim.defer_fn(function()
-        vim.api.nvim_echo({ { "" } }, false, {})
-        vim.cmd("redraw")
-    end, 100)
-end
+--============复制整个文件到剪切板=============
+vim.keymap.set("n", "<leader>ac", function()
+    vim.cmd("%y+")
+    vim.cmd("%y*")
+    vim.api.nvim_echo({ { "Copied entire file to clipboard!", "None" } }, false, {})
+end, { desc = "复制整个文件到剪贴板（+ 和 *）" })
 
 -- =================智能q====================
 local function smart_close()
@@ -328,11 +340,6 @@ vim.keymap.set("n", "<Space>cc", ":cclose<CR>", { noremap = true })
 vim.keymap.set("n", "<Space>cn", ":cnext<CR>zz", { noremap = true })
 vim.keymap.set("n", "<Space>cp", ":cprev<CR>zz", { noremap = true })
 
---============复制整个文件到剪切板=============
--- vim.keymap.set("n", "<space>ac", function()
---     vim.cmd("%y+")
---     vim.api.nvim_echo({ { "Copied entire file to clipboard!", "None" } }, false, {})
--- end, { desc = "复制整个文件到剪贴板" })
 
 -- ============== nvim-tree ====================
 
