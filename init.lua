@@ -28,8 +28,8 @@ vim.opt.ignorecase = true
 vim.opt.backspace = { "indent", "eol", "start" }
 vim.opt.updatetime = 100
 vim.opt.scrolloff = 2
-vim.opt.guifont = "Maple Mono NF Medium:h18:i"
-vim.opt.linespace = 3 -- 行距微调
+-- vim.opt.guifont = "Maple Mono NF Medium:h18:i"
+-- vim.opt.linespace = 3 -- 行距微调
 vim.opt.ttyfast = true
 vim.opt.lazyredraw = true
 vim.opt.synmaxcol = 501
@@ -275,7 +275,7 @@ vim.keymap.set({ 'n', 'v' }, '<leader>y', copy_to_clipboard, { noremap = true, s
 vim.keymap.set("i", "<C-p>", "<C-r>0", { noremap = true })
 
 --============复制整个文件到剪切板=============
-vim.keymap.set("n", "<leader>ac", function()
+vim.keymap.set("n", "<space>ac", function()
     vim.cmd("%y+")
     vim.cmd("%y*")
     vim.api.nvim_echo({ { "Copied entire file to clipboard!", "None" } }, false, {})
