@@ -1,0 +1,64 @@
+{
+    "languageserver": {
+        "clangd": {
+            "command": "clangd",
+            "args": [
+                "--background-index",
+                "--clang-tidy",
+                "--header-insertion=iwyu"
+            ],
+            "filetypes": ["c", "cpp", "objc", "objcpp", "cc"],
+            "rootPatterns": [".clangd", "compile_commands.json", ".git/"],
+            "initializationOptions": {
+                "clangdFileStatus": true,
+                "semanticHighlighting": true
+            }
+        }
+    },
+
+    "semanticTokens.enable": true,
+    "clangd.semanticHighlighting": true,
+    "coc.preferences.semanticTokens.highlight": true,
+
+    "diagnostic.virtualText": true,
+    "diagnostic.virtualTextCurrentLineOnly": false,
+    "diagnostic.errorSign": "✗",
+    "diagnostic.warningSign": "⚠",
+    "diagnostic.infoSign": "ℹ",
+    "diagnostic.hintSign": "➤",
+    "diagnostic.displayByAle": false,
+    "diagnostic.refreshOnInsertMode": false,
+    "diagnostic.checkCurrentLine": true,
+
+    "coc.preferences.messageLevel": "error",
+
+    "suggest.autoTrigger": "always",
+    "suggest.triggerAfterInsertEnter": true,
+    "suggest.maxCompleteItemCount": 20,
+    "suggest.floatEnable": true,
+    "suggest.noselect": false,
+    "suggest.floatConfig": {
+        "border": "rounded",
+        "shadow": false
+    },
+
+    "snippets.ultisnips.pythonPrompt": false,
+    "ultisnips.directories": ["~/.config/coc/ultisnips"],
+
+    "markdownlint.config": {
+        "default": true
+    },
+
+    "prettier.enable": true,
+    "prettier.requireConfig": false,
+    "prettier.tabWidth": 4,
+
+    "[json]": {
+        "editor.tabSize": 4
+    },
+
+    "sh.format.command": "shfmt",
+    "sh.format.args": ["-i", "2", "-ci"],
+
+    "coc.preferences.formatOnSave": true
+}
