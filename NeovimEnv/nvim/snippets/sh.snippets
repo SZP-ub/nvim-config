@@ -1,0 +1,189 @@
+snippet #! "#!/usr/bin/env (shebang)" b
+    #!/usr/bin/env ${1:sh}
+    ${0}
+
+snippet shebang "Shebang: /usr/bin/env <shell>" b
+    #!/usr/bin/env ${1:sh}
+    ${0}
+
+snippet sbash "safe bash options" b
+    #!/usr/bin/env bash
+    set -euo pipefail
+    IFS=$'\n\t'
+
+    ${0}
+
+snippet temp "Tempfile + traps" b
+    ${1:TMPFILE}="$(mktemp -t ${2:${VISUAL:tmp}}.XXXXXX)"
+    ${3:trap 'rm -f "$'"1"'; exit 1' 2}
+    ${4:trap 'rm -f "$'"1"'" 0}
+    # Usage: cleanup handled on EXIT and INT (customize as needed)
+
+    ${0}
+
+snippet case "case .. esac" b
+    case ${1:word} in
+        ${2:pattern})
+            ${0:${VISUAL}};;
+    esac
+
+snippet sw "switch/case (alias for case)" b
+    case ${1:word} in
+        ${2:pattern})
+            ${0:${VISUAL}};;
+    esac
+
+snippet elif "elif .. then" b
+    elif ${1:[[ ${2:condition} ]]} ; then
+        ${0:${VISUAL}}
+
+snippet for "C-style for loop" b
+    for (( ${1:i=0}; ${2:i<10}; ${3:++i} )); do
+        ${0:${VISUAL}}
+    done
+
+snippet forin "for ... in ... done" b
+    for ${1:item} in ${2:items}; do
+        ${0:${VISUAL}}
+    done
+
+snippet here "here document" b
+    cat <<-'${1:TOKEN}'
+    ${0:${VISUAL}}
+    ${1}
+
+snippet test "if ... then (test style)" b
+    if ${1:[ ${2:condition} ]} ; then
+        ${0:${VISUAL}}
+    fi
+
+snippet if "if ... then" b
+    if [[ ${1:condition} ]]; then
+        ${0:${VISUAL}}
+    fi
+
+snippet until "until ... do ... done" b
+    until ${1:[[ ${2:condition} ]]}; do
+        ${0:${VISUAL}}
+    done
+
+snippet while "while ... do ... done" b
+    while ${1:[[ ${2:condition} ]]}; do
+        ${0:${VISUAL}}
+    done
+
+snippet func "function() {...}" b
+    ${1:function} () {
+        ${0:${VISUAL}}
+    }
+
+# Shebang
+snippet #!
+	#!/bin/sh
+
+snippet s#!
+	#!/bin/sh
+	set -eu
+
+snippet safe
+	set -eu
+
+snippet bash
+	#!/usr/bin/env bash
+
+snippet sbash
+	#!/usr/bin/env bash
+	set -euo pipefail
+	IFS=$'\n\t'
+
+snippet if
+	if [ $1 ]; then
+		${0:${VISUAL}}
+	fi
+snippet elif
+	elif [ $1 ]; then
+		${0:${VISUAL}}
+snippet for
+	for (( ${2:i} = 0; $2 < ${1:count}; $2++ )); do
+		${0:${VISUAL}}
+	done
+snippet fori
+	for ${1:needle} in ${2:haystack} ; do
+		${0:${VISUAL}}
+	done
+snippet wh
+	while [ $1 ]; do
+		${0:${VISUAL}}
+	done
+snippet wht
+	while true; do
+		${0:${VISUAL}}
+	done
+snippet until
+	until [ $1 ]; do
+		${0:${VISUAL}}
+	done
+snippet case
+	case ${1:word} in
+		${2:pattern})
+			${0};;
+	esac
+snippet go
+	while getopts '${1:o}' ${2:opts}
+	do
+		case $$2 in
+		${3:o0})
+			${0:#staments};;
+		esac
+	done
+# Set SCRIPT_DIR variable to directory script is located.
+snippet sdir
+	SCRIPT_DIR="\$( cd "\$( dirname "\${BASH_SOURCE[0]}" )" && pwd )"
+# getopt
+snippet getopt
+	__ScriptVersion="${1:version}"
+
+	#===  FUNCTION  ================================================================
+	#         NAME:  usage
+	#  DESCRIPTION:  Display usage information.
+	#===============================================================================
+	function usage ()
+	{
+		echo "Usage :  \$${0:0} [options] [--]
+
+	    Options:
+	    -h|help       Display this message
+	    -v|version    Display script version"
+
+	}    # ----------  end of function usage  ----------
+
+	#-----------------------------------------------------------------------
+	#  Handle command line arguments
+	#-----------------------------------------------------------------------
+
+	while getopts ":hv" opt
+	do
+	  case \$opt in
+
+		h|help     )  usage; exit 0   ;;
+
+		v|version  )  echo "\$${0:0} -- Version \$__ScriptVersion"; exit 0   ;;
+
+		* )  echo -e "\\n  Option does not exist : \$OPTARG\\n"
+			  usage; exit 1   ;;
+
+	  esac    # --- end of case ---
+	done
+	shift \$(($OPTIND-1))
+snippet root
+	if [ \$(id -u) -ne 0 ]; then exec sudo \$0; fi
+
+snippet fun-sh
+	${1:function_name}() {
+		$0
+	}
+
+snippet fun
+	function ${1:function_name}() {
+		$0
+	}

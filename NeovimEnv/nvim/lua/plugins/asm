@@ -1,0 +1,41 @@
+---@diagnostic disable: undefined-global
+
+-- C/C++ 汇编 Godbolt 插件（已注释保留）
+-- return {
+-- 	"p00f/godbolt.nvim",
+-- 	lazy = true,
+-- 	cmd = {
+-- 		"Godbolt",
+-- 		"GodboltCompiler",
+-- 	},
+-- 	keys = {
+-- 		{ "<leader>gb", "<cmd>Godbolt<cr>", desc = "打开 Godbolt 汇编预览" },
+-- 	},
+-- 	dependencies = {
+-- 		"nvim-lua/plenary.nvim",
+-- 	},
+-- 	opts = {
+-- 		languages = {
+-- 			cpp = {
+-- 				compiler = "g122",
+-- 				options = {},
+-- 			},
+-- 			c = {
+-- 				compiler = "cg122",
+-- 				options = {},
+-- 			},
+-- 		},
+-- 		auto_cleanup = true,
+-- 		highlight = {
+-- 			cursor = "Visual",
+-- 			static = false,
+-- 		},
+-- 		quickfix = {
+-- 			enable = true,
+-- 			auto_open = true,
+-- 		},
+-- 		url = "https://godbolt.org",
+-- 	},
+-- }
+
+return {}

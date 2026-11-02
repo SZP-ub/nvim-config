@@ -1,0 +1,13 @@
+# We use a little hack so that the snippet is expanded
+# and parsed correctly
+snippet usnip "Ultisnips snippet definition" b
+    snippet ${1:Tab_trigger} "${2:Description}" ${3:b}
+    ${0:${VISUAL}}
+
+snippet global "Global snippet" b
+    global ${1:NAME}
+    ${0:${VISUAL}}
+    endglobal
+
+snippet vis "${VISUAL}" i
+    \$\{VISUAL${1:${2:default}${3:/transform/}}\}

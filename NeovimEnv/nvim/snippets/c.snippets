@@ -1,0 +1,665 @@
+## 
+## Main
+
+# main
+snippet mn
+    #include <stdio.h>
+
+	   int main(int argc, char *argv[]) {
+
+	       ${0:VISUAL}
+            
+        return 0;
+
+	   }
+
+##
+## Preprocessor
+
+# #include <...>
+snippet inc
+	#include <${1:stdio}.h>
+
+# #include "..."
+snippet Inc
+	#include "${1:`vim_snippets#Filename("$1.h")`}"
+
+# ifndef...define...endif
+snippet ndef
+	#ifndef $1
+	#define ${1:SYMBOL} ${2:value}
+	#endif /* ifndef $1 */
+
+# define
+snippet def
+    #define ${0}
+
+# ptr
+snippet ptr
+	*ptr_${1:name} = &$1;
+
+# ifdef...endif
+snippet #ifdef
+	#ifdef ${1:SYMBOL}
+		${2:#define }
+	#endif
+
+# ifdef...else...endif
+snippet #ifeldef
+	#ifdef ${1:SYMBOL}
+		${2:VISUAL}
+    #else
+        ${3:VISUAL}
+	#endif
+
+# if
+snippet #if
+	#if (${1:SYMBOL})
+		${0:VISUAL}
+	#endif
+    
+# pragma mark (mark)
+snippet mark
+	#if (${1:SYMBOL})
+		${2:VISUAL}
+	#endif
+
+    
+
+# header include guard
+snippet once
+	#ifndef ${1:__INCLUDE_H__}
+	#define $1
+
+	${0:VISUAL}
+
+	#endif /* end of include guard: $1 */
+
+# Disable C++ name mangling in C headers
+snippet nocpp
+	#ifdef __cplusplus
+	extern "C" {
+	#endif
+
+	${0:VISUAL}
+
+	#ifdef __cplusplus
+	} /* extern "C" */
+	#endif
+
+##
+## Control Statements
+
+# if
+snippet if
+    if(${1:expression}) {
+        ${2:VISUAL}
+    }
+
+# if else
+snippet ife
+	if (${1:expression}) {
+		${2:VISUAL}
+	} else {
+		${3:VISUAL}
+	}
+
+# else
+snippet el
+	else {
+		${1:VISUAL}
+	}
+
+# else if
+snippet elif
+	else if (${1:expression}) {
+		${2:VISUAL}
+	}
+
+# ifif
+snippet ifif
+	if (${1:expression}) {
+        ${2:VISUAL}
+    } else if (${3:expression}) {
+        ${4:VISUAL}
+	}
+
+# ternary
+snippet t Ternary: `condition ? true : false`
+	${1:condition} ? ${2:true} : ${0:false}
+
+# switch
+snippet switch
+	switch (${1:/* variable */}) {
+		case ${2:/* variable case */}:
+			${3:VISUAL}
+			${4:break;}${5}
+		default:
+			${6:VISUAL}
+	}
+
+# switch without default
+snippet switchndef
+	switch (${1:/* variable */}) {
+		case ${2:/* variable case */}:
+			${3:VISUAL}
+			${4:break;}${5}
+	}
+
+# case
+snippet case
+	case ${1:/* variable case */}:
+		${2:VISUAL}
+		${3:break;}
+
+# return
+snippet ret
+	return ${0};
+
+# exit
+snippet ex
+	exit(${0});
+
+##
+## Loops
+
+# for
+snippet for "reserve: int, = 0, <"
+	for (int ${2:i} = 0; $2 < ${1:count}; ${3:++}$2) {
+		${4:VISUAL}
+	}
+
+# fori (custom)
+snippet fori "reserve: int"
+	for (int ${1:i} = ${2:0}; ${3:$1 < 10}; ${4:++}$1) {
+		${5:VISUAL}
+	}
+
+# fora
+snippet fora "reserve: = 0, <"
+    for (${2:i} = 0; $2 < ${1:count}; ${3:++$2}) {
+        ${4:VISUAL}
+    }
+
+# forr
+snippet forr "reserve: = 0"
+    for (${4:int} ${2:i} = 0; $2 < ${1:count}; ${3:++$2}) {
+        ${5:VISUAL}
+    }
+
+# while
+snippet wh
+	while (${1:expression}) {
+		${2:VISUAL}
+	}
+
+# do... while
+snippet do
+	do {
+		${1:VISUAL}
+	} while (${2:expression});
+
+##
+## Functions
+
+# function definition with zero parameters
+snippet fnd
+	${1:void} ${2:function_name}($3);
+
+# function definition with parameter or parameters
+snippet dfnd
+	${1:void} ${2:function_name}($3) {
+		${9:VISUAL}
+	}
+
+# function definition with zero parameters
+# snippet dfn0
+# 	${1:void} ${2:function_name}() {
+# 		${3:VISUAL}
+# 	}
+
+# function definition with zero parameters
+# snippet fn0
+# 	${1:void} ${2:function_name}(); 
+
+# function definition with Doxygen documentation
+# snippet dfn0
+# 	/*! \brief ${1:Brief function description here}
+# 	 *
+# 	 *  ${2:Detailed description of the function}
+# 	 *
+# 	 * \return ${3:Return parameter description}
+# 	 */
+# 	${4:void} ${5:function_name}()	{
+# 		${6:VISUAL}
+# 	}
+
+# function definition with one parameter
+# snippet dfn1
+# 	${1:void} ${2:function_name}(${3:Type} ${4:Parameter})	{
+# 		${5:VISUAL}
+# 	}
+
+# function definition with one parameter
+# snippet fn1
+# 	${1:void} ${2:function_name}(${3:Type} ${4:Parameter});
+
+# function definition with one parameter with  Doxygen documentation
+# snippet dfn1
+# 	/*! \brief ${1:Brief function description here}
+# 	 *
+# 	 *  ${2:Detailed description of the function}
+# 	 *
+# 	 * \param $3 ${4:Parameter description}
+# 	 * \return ${5:Return parameter description}
+# 	 */
+# 	${6:void} ${7:function_name}(${8:Type} ${3:Parameter})	{
+# 		${9:VISUAL}
+# 	}
+
+# function definition with two parameters
+# snippet fn2
+# 	${1:void} ${2:function_name}(${3:Type} ${4:Parameter}, ${5:Type} ${6:Parameter});
+
+# function definition with two parameters with  Doxygen documentation
+# snippet dfn2
+# 	/*! \brief ${1:Brief function description here}
+# 	 *
+# 	 *  ${2:Detailed description of the function}
+# 	 *
+# 	 * \param $3 ${4:Parameter description}
+# 	 * \param $5 ${6:Parameter description}
+# 	 * \return ${7:Return parameter description}
+# 	 */
+# 	${8:void} ${9:function_name}(${10:Type} ${3:Parameter}, ${11:Type} ${5:Parameter})	{
+# 		${12:VISUAL}
+# 	}
+
+# function definition with three parameters
+# snippet fn3
+# 	${1:void} ${2:function_name}(${3:Type} ${4:Parameter}, ${5:Type} ${6:Parameter}, ${7:Type} ${8:Parameter});
+
+# function definition with three parameters with  Doxygen documentation
+# snippet dfn3
+# 	/*! \brief ${1:Brief function description here}
+# 	 *
+# 	 *  ${2:Detailed description of the function}
+# 	 *
+# 	 * \param $3 ${4:Parameter description}
+# 	 * \param $5 ${6:Parameter description}
+# 	 * \param $7 ${8:Parameter description}
+# 	 * \return ${9:Return parameter description}
+# 	 */
+# 	${10:void} ${11:function_name}(${12:Type} ${3:Parameter}, ${13:Type} ${5:Parameter}, ${14:Type} ${7:Parameter})	{
+# 		${15:VISUAL}
+# 	}
+
+# type (*) (type,type)
+snippet fnp "parameter is void" 
+    ${1:type} (*${2:name})($3);
+
+# type (*) (type,type)
+snippet fnp0 "parameter is void" 
+    ${1:type} (*${2:name})(void);
+
+# fnp one parameter
+snippet fnp1 "One parameter" 
+    /* $3${5: name} */
+    ${1:type} (*${2:name})(${3:type});
+
+# fnp two parameters
+snippet fnp2 "Two parameters" 
+    /* $3${6: name}, $4${7: name} */
+    ${1:type} (*${2:name})(${3:type}, ${4:type});
+
+# fnp three parameters
+snippet fnp3 "Three parameters" 
+    /* $3${6: name}, $4${7: name}, $4${8: name} */
+    ${1:type} (*${2:name})(${3:type}, ${4:type}, ${5:type});
+
+# type (*) (type,type) = val
+snippet fcptr "ptrFunction" 
+    /*$1 (*$2) ($3 ${5:name}) = $4*/
+    ${1:type} (*${2:name})(${3:type}) = ${4:Val};
+
+# fndp
+snippet fndp "function declaration"
+    ${1:void}* ${2:function_name}($3);
+
+# fndbool
+snippet fnb1 "function declaration"
+    bool ${1:function_name}($2);
+
+##
+## Types
+
+# typedef
+snippet tp
+    typedef ${1:int} ${2:MyCustomType};
+
+# typedef struct
+snippet dtps
+    typedef struct ${1:name} $1;
+
+# typedef struct
+snippet tps
+    typedef struct ${1:name} { 
+        ${2:Data}
+    } $1;
+
+# struct
+snippet st 
+    struct ${1:name} {
+        ${2:/* data */}
+    };
+
+
+# enum
+snippet enum
+	enum ${1:name} { ${2:VISUAL} };
+
+# typedef enum
+snippet tpe
+    typedef enum {
+        ${1:name}
+    } ${2:foo}Status;
+
+#  typedef type (*) (type,type)
+snippet dtpp "typedef ptrFunction" 
+    typedef ${1:type} (*${2:name})(${3:type});
+
+# typedef enum
+snippet tpea
+    typedef enum {
+        ${1:name}_OK = 0,
+        $1_ERR_NULL,      /* 参数为空 （如传入的DListerOpaque* 为空 */
+        $1_ERR_EMPTY,     /* 底层lsit为空 （head==NULL） */
+        $1_ERR_OOB,       /* 下标越界或者无效位置 */
+        $1_ERR_NOMEM,     /* 内存分配失败 */
+        $1_ERR_OPERATION, /* 操作失败（一般性错误）*/
+        $1_ERR_UNKNOWN    /* 未知错误 */
+    } ${2:foo}Status;
+
+##
+## Input/Output
+
+# scanf
+snippet sf 
+	scanf("%${1:VISUAL}",&${2:VISUAL});
+
+# printf
+snippet pri
+	printf("$1\n"$2);
+
+# fprintf (again, this isn't as nice as TextMate's version, but it works)
+snippet fpr
+	fprintf(${1:stderr}, "${2:%s}\n"${3});
+
+# printf-d
+snippet prd
+	printf("${1:value} = %d\n", $1);
+
+# printf-f
+snippet prf
+	printf("${1:value} = %f\n", $1);
+
+# printf-x
+snippet prx
+	printf("${1:value} = %${2}\n", $1);
+
+# printf-p
+snippet prp
+	printf("${1:value} = %p\n", (void*)$1);
+
+# warn
+snippet warn
+	warn("${1:%s}");
+
+# warnx
+snippet warnx
+	warnx("${1:%s}");
+
+# err
+snippet err
+	err(${1:1}, "${2:%s}");
+
+# errx
+snippet errx
+	errx(${1:1}, "${2:%s}");
+
+# getopt
+snippet getopt
+	int choice;
+	while (1)	{
+		static struct option long_options[] =		{
+			/* Use flags like so:
+			{"verbose",	no_argument,	&verbose_flag, 'V'}*/
+			/* Argument styles: no_argument, required_argument, optional_argument */
+			{"version", no_argument,	0,	'v'},
+			{"help",	no_argument,	0,	'h'},
+			${1}
+			{0,0,0,0}
+		};
+
+		int option_index = 0;
+
+		/* Argument parameters:
+			no_argument: " "
+			required_argument: ":"
+			optional_argument: "::" */
+
+		choice = getopt_long( argc, argv, "vh",
+					long_options, &option_index);
+
+		if (choice == -1) {
+            break;
+        }
+
+		switch( choice )		{
+			case 'v':
+				${2}
+				break;
+
+			case 'h':
+				${3}
+				break;
+
+			case '?':
+				/* getopt_long will have already printed an error */
+				break;
+
+			default:
+				/* Not sure how to get here... */
+				return EXIT_FAILURE;
+		}
+	}
+
+	/* Deal with non-option arguments here */
+	if ( optind < argc )	{
+		while ( optind < argc )		{
+			${0}
+		}
+	}
+
+##
+## Assertions
+
+# assert
+snippet asr
+	assert($1);
+
+# assert NULL
+snippet anl
+	assert(${1:ptr} != NULL);
+
+# NULL
+snippet nll
+	NULL
+
+## Dynamic Allocation
+
+# mset
+snippet mset
+	memset(${1:ptr *}, 0, ${2:size} * sizeof(${3:type}));
+
+# mse
+snippet mse
+	memset(${1:ptr *}, 0, sizeof(${2:type}));
+
+# mcpy
+snippet mcpy
+	memcpy(${1:ptr *}, ${2:const ptr *}, ${3:size} * sizeof(${4:type}));
+
+# mcp
+snippet mcp
+	memcpy(${1:ptr *}, ${2:const ptr *}, sizeof(${3:type}));
+
+# mmove
+snippet mmove
+	memmove(${1:ptr *}, ${2:const ptr *}, ${3:size} * sizeof(${4:type}));
+
+# mmov
+snippet mmov
+	memmove(${1:ptr *}, ${2:const ptr *},sizeof(${3:type}));
+
+# mcmp
+snippet mcmp
+	memcmp(${1:const ptr *}, ${2:const ptr *}, ${3:size} * sizeof(${4:type}));
+
+# mcm
+snippet mcm
+	memcmp(${1:const ptr *}, ${2:const ptr *},sizeof(${3:type}));
+
+# reserve
+snippet ma "no: type, number, if"
+	${1:ptr *} = (${2:type}*) malloc( sizeof($2));
+
+# reserve if 
+snippet mai "no: type, number"
+	${1:ptr *} = (${2:type}*) malloc( sizeof($2));
+	if (!$1) {
+		fprintf(stderr,"The memory allocation for ${1:name} failed\n");
+		return ${3:-1};
+	}
+
+# mat
+snippet mat "no: type, number"
+	${1:ptr *} = (${2:type}*) malloc( sizeof($2));
+	TEST_ASSERT_NOT_NULL($1);
+
+# mal
+snippet mal  "no: number, if"
+	${1:type} ${2:ptr *} = ($1*) malloc(sizeof($1));
+
+# reserve: type, if
+snippet mali "no: number"
+	${1:type} *${2:ptr *} = ($1*) malloc(sizeof($1));
+	if (!$2) {
+		fprintf(stderr,"The memory allocation for ${2:name} failed\n");
+		return ${3:-1};
+	}
+
+# malt
+snippet malt "no: number"
+	${1:type} *${2:ptr *} = ($1*) malloc(sizeof($1));
+	TEST_ASSERT_NOT_NULL($2);
+
+# mall
+snippet mall "no: type, if"
+	${1:ptr *} = (${2:type}*) malloc(${3:size} * sizeof($2));
+
+# reserve: size, if
+snippet malli "no: type "
+	${1:ptr *} = (${2:type}*) malloc(${3:size} * sizeof($2));
+	if (!$1) {
+		fprintf(stderr,"The memory allocation for ${1:name} failed\n");
+		return ${3:-1};
+	}
+
+# call
+snippet call "no: type, if"
+	${1:ptr *} = (${2:type}*) calloc(${3:size}, sizeof($2));
+
+# real
+snippet real "no: type, if"
+	${1:ptr *} = realloc($1, ${2:size} * sizeof(${3:type}));
+
+# cal
+snippet cal "no: if"
+	${1:type} *${2:ptr *} = ($1*) calloc(${3:size}, sizeof($1));
+
+# cal
+snippet cali "full"
+	${1:type} *${2:ptr *} = ($1*) calloc(${3:size}, sizeof($1));
+	if (!$2) {
+		fprintf(stderr,"The memory allocation for ${2:name} failed\n");
+		return ${4:-1};
+	}
+
+# free
+snippet fre
+	free(${1:ptr *});
+
+# reserve ptr
+snippet free "add ptr* = NULL"
+	free(${1:ptr *});
+	$1 = NULL;
+
+# fgets
+snippet fgets
+	fgets(${1:ptr *},sizeof($1),${2:fptr *});
+
+##
+# TODO section
+snippet todo
+	/*! TODO: ${1:Todo description here}
+	 *  \todo $1
+	 */
+
+## Miscellaneous
+# This is kind of convenient
+snippet .
+	->${1:type}
+
+# asm
+snippet asm
+	__asm__ __volatile__(
+	"${1}\n\t"
+	:
+	:
+	);
+
+##
+## Test
+
+# run
+snippet run
+    void ${1:function_name} (void);
+        RUN_TEST(${1});
+
+# test
+snippet test
+    #include "/home/i/tools/Unity/src/unity.h"
+    #include "${0:`!p
+        name = snip.basename or "name"
+        if name.startswith("test_"):
+            name = name[5:]
+        if name.endswith(".c"):
+            name = name[:-2]
+        snip.rv = name + ".h"
+    `}"
+
+    void setUp() {}
+
+    void tearDown() {}
+
+    void ${1:function_name} (void);
+
+    int main(int argc, char *argv[]) {
+        UNITY_BEGIN();
+
+        RUN_TEST(${1});
+
+        return UnityEnd();
+    }
+

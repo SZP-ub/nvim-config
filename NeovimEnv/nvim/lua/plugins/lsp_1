@@ -1,0 +1,526 @@
+local function safe_require(name)
+	local ok, mod = pcall(require, name)
+	if ok then
+		return mod
+	end
+	return nil
+end
+
+local function smart_tabout()
+	local row, col = unpack(vim.api.nvim_win_get_cursor(0))
+	local line = vim.api.nvim_get_current_line()
+	local before = line:sub(1, col)
+	local after = line:sub(col + 1)
+
+	local pairs_list = {
+		{ "(", ")" },
+		{ "[", "]" },
+		{ "{", "}" },
+		{ '"', '"' },
+		{ "'", "'" },
+		{ "`", "`" },
+		{ "$", "$" },
+	}
+
+	local nearest_pos = nil
+
+	for _, p in ipairs(pairs_list) do
+		local open_pat = vim.pesc(p[1])
+		local close_pat = vim.pesc(p[2])
+
+		if before:find(open_pat) then
+			local pos = after:find(close_pat)
+			if pos then
+				if not nearest_pos or pos < nearest_pos then
+					nearest_pos = pos
+				end
+			end
+		end
+	end
+
+	if nearest_pos then
+		vim.api.nvim_win_set_cursor(0, { row, col + nearest_pos })
+		return true
+	end
+	return false
+end
+
+return {
+	---------------------------------------------------------------------------
+	-- 1. mason.nvim
+	---------------------------------------------------------------------------
+	{
+		"mason-org/mason.nvim",
+		event = "VeryLazy",
+		opts = {
+			ui = {
+				width = 0.8,
+				height = 0.7,
+				icons = { package_installed = "✓", package_pending = "➜", package_uninstalled = "✗" },
+			},
+		},
+		config = function(_, opts)
+			local mason = safe_require("mason")
+			if mason then
+				mason.setup(opts)
+			end
+		end,
+	},
+
+	---------------------------------------------------------------------------
+	-- 2. nvim-lspconfig
+	---------------------------------------------------------------------------
+	{
+		"neovim/nvim-lspconfig",
+		event = "VeryLazy",
+		dependencies = {
+			"mason-org/mason.nvim",
+			"mason-org/mason-lspconfig.nvim",
+			"hrsh7th/cmp-nvim-lsp",
+		},
+		config = function()
+			local mason_lspconfig = safe_require("mason-lspconfig")
+			if not mason_lspconfig then
+				return
+			end
+
+			vim.diagnostic.config({
+				severity_sort = true,
+				underline = { severity = vim.diagnostic.severity.ERROR },
+				signs = {
+					text = {
+						[vim.diagnostic.severity.ERROR] = " ",
+						[vim.diagnostic.severity.WARN] = " ",
+						[vim.diagnostic.severity.INFO] = " ",
+						[vim.diagnostic.severity.HINT] = "",
+					},
+				},
+				virtual_text = false,
+				float = { border = "rounded", source = "if_many" },
+				update_in_insert = false,
+			})
+
+			vim.api.nvim_create_autocmd("LspAttach", {
+				group = vim.api.nvim_create_augroup("user-lsp-attach", { clear = true }),
+				callback = function(event)
+					local buf = event.buf
+					local client = vim.lsp.get_client_by_id(event.data.client_id)
+
+					local function map(keys, func, desc, mode)
+						mode = mode or "n"
+						vim.keymap.set(
+							mode,
+							keys,
+							func,
+							{ buffer = buf, desc = "LSP: " .. (desc or keys), silent = true }
+						)
+					end
+
+					map("gd", vim.lsp.buf.definition, "跳转到定义")
+					map("gi", vim.lsp.buf.implementation, "跳转到实现")
+					map("grt", vim.lsp.buf.type_definition, "跳转到类型定义")
+					map("grn", vim.lsp.buf.rename, "变量/符号重命名")
+					map("gra", vim.lsp.buf.code_action, "代码操作与自动修复", { "n", "x" })
+					map("grd", vim.lsp.buf.declaration, "跳转到声明")
+					map("[g", vim.diagnostic.goto_prev, "跳转到上一个错误/警告")
+					map("]g", vim.diagnostic.goto_next, "跳转到下一个错误/警告")
+
+					map("g[", function()
+						vim.diagnostic.jump({ count = -1, severity = vim.diagnostic.severity.ERROR, float = true })
+					end, "跳转到上一个错误")
+
+					map("g]", function()
+						vim.diagnostic.jump({ count = 1, severity = vim.diagnostic.severity.ERROR, float = true })
+					end, "跳转到下一个错误")
+
+					map("K", function()
+						local ufo = safe_require("ufo")
+						if ufo then
+							local ok, winid = pcall(ufo.peekFoldedLinesUnderCursor)
+							if ok and winid and winid ~= 0 then
+								return
+							end
+						end
+						vim.lsp.buf.hover()
+					end, "Show hover documentation")
+
+					if
+						client
+						and client.supports_method
+						and client:supports_method(vim.lsp.protocol.Methods.textDocument_documentHighlight, buf)
+					then
+						local highlight_grp =
+							vim.api.nvim_create_augroup("user-lsp-document-highlight", { clear = false })
+						vim.api.nvim_create_autocmd({ "CursorHold", "CursorHoldI" }, {
+							buffer = buf,
+							group = highlight_grp,
+							callback = vim.lsp.buf.document_highlight,
+						})
+						vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
+							buffer = buf,
+							group = highlight_grp,
+							callback = vim.lsp.buf.clear_references,
+						})
+					end
+
+					if
+						client
+						and client.supports_method
+						and client:supports_method(vim.lsp.protocol.Methods.textDocument_inlayHint, buf)
+					then
+						pcall(vim.lsp.inlay_hint.enable, true, { bufnr = buf })
+					end
+				end,
+			})
+
+			local capabilities = vim.lsp.protocol.make_client_capabilities()
+			local cmp_nvim_lsp = safe_require("cmp_nvim_lsp")
+			if cmp_nvim_lsp then
+				capabilities = cmp_nvim_lsp.default_capabilities(capabilities)
+			end
+
+			vim.lsp.config("*", {
+				capabilities = capabilities,
+			})
+
+			mason_lspconfig.setup({
+				ensure_installed = { "lua_ls", "marksman", "texlab", "basedpyright", "jsonls", "clangd" },
+				automatic_installation = true,
+			})
+
+			vim.lsp.config("lua_ls", {
+				settings = {
+					Lua = {
+						diagnostics = { globals = { "vim" } },
+						workspace = { checkThirdParty = false },
+					},
+				},
+			})
+
+			vim.lsp.enable({ "lua_ls", "marksman", "texlab", "clangd", "jsonls", "basedpyright" })
+		end,
+	},
+
+	---------------------------------------------------------------------------
+	-- 3. nvim-cmp 智能补全（全盘接管编辑区、命令行、模糊搜索与历史记录）
+	---------------------------------------------------------------------------
+	{
+		"hrsh7th/nvim-cmp",
+		event = { "InsertEnter", "CmdlineEnter" },
+		dependencies = {
+			"hrsh7th/cmp-nvim-lsp",
+			"saadparwaiz1/cmp_luasnip",
+			"hrsh7th/cmp-buffer",
+			"hrsh7th/cmp-path",
+			"L3MON4D3/LuaSnip",
+			"lukas-reineke/cmp-rg",
+			{ "kdheepak/cmp-latex-symbols", ft = { "latex", "tex", "markdown", "markdown_inline" } },
+			{ "micangl/cmp-vimtex", ft = { "latex", "tex", "markdown", "markdown_inline" } },
+			{ "hrsh7th/cmp-omni", ft = { "tex", "latex" } },
+			"rasulomaroff/cmp-bufname",
+			-- 核心新增：接管命令行与命令历史
+			"hrsh7th/cmp-cmdline",
+			"dmitmel/cmp-cmdline-history",
+		},
+		config = function()
+			local cmp = safe_require("cmp")
+			if not cmp then
+				return
+			end
+			local luasnip = safe_require("luasnip")
+
+			-- if luasnip then
+			-- 	pcall(require("luasnip.loaders.fromsnipmate").lazy_load, {
+			-- 		paths = { vim.fn.stdpath("config") .. "/snippets" },
+			-- 	})
+			-- end
+
+			-- 修正后的标准写法：
+			if luasnip then
+				local ok_snip, snipmate = pcall(require, "luasnip.loaders.from_snipmate")
+				if ok_snip then
+					snipmate.lazy_load({
+						paths = { vim.fn.stdpath("config") .. "/snippets" },
+					})
+				end
+			end
+			local kind_icons = {
+				Text = "󰉿",
+				Method = "󰆧",
+				Function = "",
+				Constructor = "",
+				Field = "󰜢",
+				Variable = "",
+				Class = "",
+				Interface = "",
+				Module = "",
+				Property = "󰜢",
+				Unit = "",
+				Value = "󰎠",
+				Enum = "󰕘",
+				Keyword = "󰌋",
+				Snippet = "",
+				Color = "󰏘",
+				File = "",
+				Reference = "",
+				Folder = "󰉋",
+				EnumMember = "",
+				Constant = "",
+				Struct = "󰙅",
+				Event = "",
+				Operator = "󰆕",
+				TypeParameter = "󰊄",
+			}
+
+			-- A. 基础编辑区补全规则
+			cmp.setup({
+				snippet = {
+					expand = function(args)
+						if luasnip then
+							luasnip.lsp_expand(args.body)
+						end
+					end,
+				},
+
+				mapping = cmp.mapping.preset.insert({
+					["<CR>"] = cmp.mapping.confirm({ select = true }),
+					["<Tab>"] = cmp.mapping(function(fallback)
+						if cmp.visible() then
+							cmp.select_next_item()
+						elseif luasnip and luasnip.expand_or_jumpable() then
+							luasnip.expand_or_jump()
+						elseif not smart_tabout() then
+							fallback()
+						end
+					end, { "i", "s" }),
+					["<S-Tab>"] = cmp.mapping(function(fallback)
+						if cmp.visible() then
+							cmp.select_prev_item()
+						elseif luasnip and luasnip.jumpable(-1) then
+							luasnip.jump(-1)
+						else
+							fallback()
+						end
+					end, { "i", "s" }),
+					["<C-b>"] = cmp.mapping.scroll_docs(-4),
+					["<C-f>"] = cmp.mapping.scroll_docs(4),
+					["<C-p>"] = cmp.mapping.close(),
+				}),
+
+				completion = { completeopt = "menu,menuone" },
+				formatting = {
+					fields = { "kind", "abbr", "menu" },
+					format = function(entry, vim_item)
+						vim_item.kind = (kind_icons[vim_item.kind] or "")
+						vim_item.menu = ({
+							luasnip = "[Snip]",
+							buffer = "[Buf]",
+							path = "[Path]",
+							cmdline_history = "[Hist]",
+							nvim_lsp = "[LSP]",
+							vimtex = "[Vimtex]",
+							cmdline = "[Cmd]",
+							omni = (vim.inspect(vim_item.menu):gsub('%"', "")),
+						})[entry.source.name] or ""
+						return vim_item
+					end,
+				},
+				sources = cmp.config.sources({
+					{ name = "luasnip" },
+					{
+						name = "buffer",
+						option = {
+							get_bufnrs = function()
+								local bufs = {}
+								for _, win in ipairs(vim.api.nvim_list_wins()) do
+									bufs[vim.api.nvim_win_get_buf(win)] = true
+								end
+								return vim.tbl_keys(bufs)
+							end,
+						},
+					},
+					{ name = "nvim_lsp" },
+					{ name = "path" },
+					{
+						name = "rg",
+						keyword_length = 3,
+						option = {
+							additional_arguments = "--hidden --max-depth 2",
+							pattern = "[a-zA-Z_]+",
+							cwd = ".",
+							debounce = 500,
+							context_before = 2,
+							context_after = 4,
+						},
+					},
+					{ name = "latex_symbols", option = { strategy = 0 } },
+					{ name = "vimtex" },
+					{ name = "omni", trigger_characters = { "{", "\\" } },
+					{
+						name = "bufname",
+						option = {
+							current_buf_only = false,
+							bufs = function()
+								return vim.api.nvim_list_bufs()
+							end,
+							extractor = function(filename, _)
+								return { filename:match("[^.]*") }
+							end,
+						},
+					},
+				}),
+				experimental = { ghost_text = true },
+			})
+
+			cmp.setup.cmdline({ "/", "?", ":" }, {
+				mapping = cmp.mapping.preset.cmdline(),
+				formatting = {
+					fields = { "kind", "abbr", "menu" },
+					format = function(entry, vim_item)
+						-- 为命令行补全定制专属精美图标，替换生硬的 Tt/Aa
+						local cmd_icons = {
+							cmdline = " ",
+							cmdline_history = " ",
+							path = " ",
+						}
+						vim_item.kind = cmd_icons[entry.source.name] or " "
+						-- vim_item.menu = ({
+						-- 	cmdline = "[Cmd]",
+						-- 	cmdline_history = "[Hist]",
+						-- 	path = "[Path]",
+						-- })[entry.source.name] or ""
+
+						vim_item.menu = ({
+							cmdline = "[Cmd]",
+							cmdline_history = "[Hist]",
+							nvim_lsp = "[LSP]",
+							path = "[Path]",
+							buffer = "[Buf]",
+							luasnip = "[Snip]",
+							vimtex = "[Vimtex]",
+							omni = (vim.inspect(vim_item.menu):gsub('%"', "")),
+						})[entry.source.name] or ""
+
+						-- 截断超长命令历史，防止横条撑爆屏幕
+						local max_width = 15
+						if #vim_item.abbr > max_width then
+							vim_item.abbr = vim_item.abbr:sub(1, max_width - 3) .. "..."
+						end
+						return vim_item
+					end,
+				},
+
+				sources = {
+					{ name = "lsp" },
+					{ name = "snippets" },
+					{ name = "cmdline" },
+					{ name = "cmdline_history" },
+					{
+						name = "rg",
+						keyword_length = 3,
+						option = {
+							additional_arguments = "--hidden --max-depth 2",
+							pattern = "[a-zA-Z_]+",
+							cwd = ".",
+							debounce = 500,
+							context_before = 2,
+							context_after = 4,
+						},
+					},
+					{
+						name = "buffer",
+						option = {
+							get_bufnrs = function()
+								local bufs = {}
+								for _, win in ipairs(vim.api.nvim_list_wins()) do
+									bufs[vim.api.nvim_win_get_buf(win)] = true
+								end
+								return vim.tbl_keys(bufs)
+							end,
+						},
+					},
+					{ name = "path" },
+					{ name = "vimtex" },
+				},
+			})
+			-- B. 搜索模式（/ 与 ?）：同时支持当前 Buffer 单词与历史搜索词
+			cmp.setup.cmdline({ "/", "?" }, {
+				mapping = cmp.mapping.preset.cmdline(),
+				sources = {
+					{ name = "lsp" },
+					{ name = "cmdline" },
+					{ name = "cmdline_history" },
+					{
+						name = "rg",
+						keyword_length = 3,
+						option = {
+							additional_arguments = "--hidden --max-depth 2",
+							pattern = "[a-zA-Z_]+",
+							cwd = ".",
+							debounce = 500,
+							context_before = 2,
+							context_after = 4,
+						},
+					},
+					{
+						name = "buffer",
+						option = {
+							get_bufnrs = function()
+								local bufs = {}
+								for _, win in ipairs(vim.api.nvim_list_wins()) do
+									bufs[vim.api.nvim_win_get_buf(win)] = true
+								end
+								return vim.tbl_keys(bufs)
+							end,
+						},
+					},
+					{ name = "path" },
+				},
+			})
+
+			-- `:` cmdline setup.
+			cmp.setup.cmdline(":", {
+				mapping = cmp.mapping.preset.cmdline(),
+				sources = cmp.config.sources({
+					{ name = "cmdline_history" },
+					{ name = "cmdline" },
+					{ name = "lsp" },
+					{ name = "buffer" },
+					{ name = "rg" },
+					{ name = "path" },
+				}, {
+					{
+						name = "cmdline",
+						option = {
+							ignore_cmds = { "Man", "!" },
+						},
+					},
+					{
+						name = "rg",
+						keyword_length = 3,
+						option = {
+							additional_arguments = "--hidden --max-depth 2",
+							pattern = "[a-zA-Z_]+",
+							cwd = ".",
+							debounce = 500,
+							context_before = 2,
+							context_after = 4,
+						},
+					},
+					{
+						name = "buffer",
+						option = {
+							get_bufnrs = function()
+								local bufs = {}
+								for _, win in ipairs(vim.api.nvim_list_wins()) do
+									bufs[vim.api.nvim_win_get_buf(win)] = true
+								end
+								return vim.tbl_keys(bufs)
+							end,
+						},
+					},
+				}),
+			})
+		end,
+	},
+}

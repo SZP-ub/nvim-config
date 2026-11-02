@@ -1,0 +1,437 @@
+-- 小工具：安全 require（统一封装 pcall(require, ...)）
+local function safe_require(name)
+	local ok, mod = pcall(require, name)
+	if ok then
+		return mod
+	end
+	return nil
+end
+
+return {
+	---------------------------------------------------------------------------
+	-- 1. mason.nvim：负责底层二进制工具的管理和环境注入
+	---------------------------------------------------------------------------
+	{
+		"mason-org/mason.nvim",
+		event = "VeryLazy",
+		opts = {
+			ui = {
+				width = 0.8,
+				height = 0.7,
+				icons = { package_installed = "✓", package_pending = "➜", package_uninstalled = "✗" },
+			},
+		},
+		config = function(_, opts)
+			local mason = safe_require("mason")
+			if mason then
+				mason.setup(opts)
+			end
+		end,
+	},
+
+	---------------------------------------------------------------------------
+	-- 2. nvim-lspconfig：Neovim 0.11 原生 API 配置写法
+	---------------------------------------------------------------------------
+	{
+		"neovim/nvim-lspconfig",
+		event = "VeryLazy",
+		dependencies = {
+			"mason-org/mason.nvim",
+			"mason-org/mason-lspconfig.nvim",
+			"hrsh7th/cmp-nvim-lsp",
+		},
+		config = function()
+			local mason_lspconfig = safe_require("mason-lspconfig")
+			if not mason_lspconfig then
+				return
+			end
+
+			-- 1) 全局诊断 (Diagnostics) UI 配置：解决红字报错的圆角边框
+			vim.diagnostic.config({
+				severity_sort = true,
+				underline = { severity = vim.diagnostic.severity.ERROR },
+				signs = {
+					text = {
+						[vim.diagnostic.severity.ERROR] = " ",
+						[vim.diagnostic.severity.WARN] = " ",
+						[vim.diagnostic.severity.INFO] = " ",
+						[vim.diagnostic.severity.HINT] = "",
+					},
+				},
+				virtual_text = false,
+				float = { border = "rounded", source = "if_many" },
+				update_in_insert = false,
+			})
+
+			-- 2) 定义 LspAttach 自动命令：绑定快捷键
+			vim.api.nvim_create_autocmd("LspAttach", {
+				group = vim.api.nvim_create_augroup("user-lsp-attach", { clear = true }),
+				callback = function(event)
+					local buf = event.buf
+					local client = vim.lsp.get_client_by_id(event.data.client_id)
+
+					local function map(keys, func, desc, mode)
+						mode = mode or "n"
+						vim.keymap.set(
+							mode,
+							keys,
+							func,
+							{ buffer = buf, desc = "LSP: " .. (desc or keys), silent = true }
+						)
+					end
+
+					map("gd", vim.lsp.buf.definition, "Goto Definition")
+					map("gi", vim.lsp.buf.implementation, "Goto Implementation")
+					map("grt", vim.lsp.buf.type_definition, "Type Definition")
+					map("grn", vim.lsp.buf.rename, "Rename")
+					map("gra", vim.lsp.buf.code_action, "Code Action", { "n", "x" })
+					map("grd", vim.lsp.buf.declaration, "Goto Declaration")
+					map("[g", vim.diagnostic.goto_prev, "Previous Diagnostic")
+					map("]g", vim.diagnostic.goto_next, "Next Diagnostic")
+
+					-- K 键文档悬浮窗：已去除 border = "rounded" 渲染
+					map("K", function()
+						local ufo = safe_require("ufo")
+						if ufo then
+							local ok, winid = pcall(ufo.peekFoldedLinesUnderCursor)
+							if ok and winid and winid ~= 0 then
+								return
+							end
+						end
+						-- 使用默认渲染
+						vim.lsp.buf.hover()
+					end, "Show hover documentation")
+
+					-- 高亮相同变量
+					if
+						client
+						and client.supports_method
+						and client:supports_method(vim.lsp.protocol.Methods.textDocument_documentHighlight, buf)
+					then
+						local highlight_grp =
+							vim.api.nvim_create_augroup("user-lsp-document-highlight", { clear = false })
+						vim.api.nvim_create_autocmd({ "CursorHold", "CursorHoldI" }, {
+							buffer = buf,
+							group = highlight_grp,
+							callback = vim.lsp.buf.document_highlight,
+						})
+						vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
+							buffer = buf,
+							group = highlight_grp,
+							callback = vim.lsp.buf.clear_references,
+						})
+					end
+
+					-- 启用 Inlay Hints
+					if
+						client
+						and client.supports_method
+						and client:supports_method(vim.lsp.protocol.Methods.textDocument_inlayHint, buf)
+					then
+						pcall(vim.lsp.inlay_hint.enable, true, { bufnr = buf })
+					end
+				end,
+			})
+
+			-- 3) 准备并注入补全能力 (Capabilities)
+			local capabilities = vim.lsp.protocol.make_client_capabilities()
+			local cmp_nvim_lsp = safe_require("cmp_nvim_lsp")
+			if cmp_nvim_lsp then
+				capabilities = cmp_nvim_lsp.default_capabilities(capabilities)
+			end
+
+			-- 使用 Neovim 0.11 原生 API 配置默认全局能力
+			vim.lsp.config("*", {
+				capabilities = capabilities,
+			})
+
+			-- 4) 设置 Mason 自动安装机制
+			mason_lspconfig.setup({
+				-- ensure_installed = { "clangd", "lua_ls", "marksman", "pyright", "jsonls", "texlab" },
+				ensure_installed = { "lua_ls", "marksman", "texlab" },
+				automatic_installation = true,
+			})
+
+			-- 5) 使用 Neovim 0.11 原生 API 覆盖特定 Server 的配置
+			-- vim.lsp.config("clangd", {
+			-- 	capabilities = vim.tbl_deep_extend("force", capabilities, {
+			-- 		offsetEncoding = { "utf-8", "utf-16" },
+			-- 	}),
+			-- })
+
+			vim.lsp.config("lua_ls", {
+				settings = {
+					Lua = {
+						diagnostics = { globals = { "vim" } },
+						workspace = { checkThirdParty = false },
+					},
+				},
+			})
+
+			-- 6) 统一激活所需的 LSP
+			-- vim.lsp.enable({ "clangd", "lua_ls", "marksman", "pyright", "jsonls", "texlab" })
+			vim.lsp.enable({ "lua_ls", "marksman", "texlab" })
+		end,
+	},
+
+	---------------------------------------------------------------------------
+	-- 3. nvim-cmp：插入模式补全
+	---------------------------------------------------------------------------
+	{
+		"hrsh7th/nvim-cmp",
+		event = "VeryLazy",
+		dependencies = {
+			"hrsh7th/cmp-nvim-lsp",
+			"saadparwaiz1/cmp_luasnip",
+			"hrsh7th/cmp-buffer",
+			"hrsh7th/cmp-path",
+			"L3MON4D3/LuaSnip",
+			"lukas-reineke/cmp-rg",
+			{ "kdheepak/cmp-latex-symbols", ft = { "latex", "markdown", "markdown_inline" } },
+			{ "micangl/cmp-vimtex", ft = { "latex", "markdown", "markdown_inline" } },
+			{ "hrsh7th/cmp-omni", ft = { "tex" } },
+			"rasulomaroff/cmp-bufname",
+		},
+		config = function()
+			local cmp = safe_require("cmp")
+			if not cmp then
+				return
+			end
+			local luasnip = safe_require("luasnip")
+
+			if luasnip then
+				pcall(require("luasnip.loaders.from_snipmate").lazy_load, {
+					paths = { vim.fn.stdpath("config") .. "/snippets" },
+				})
+			end
+
+			local function jump_out_pair_forward_or_tab()
+				local row, col = unpack(vim.api.nvim_win_get_cursor(0))
+				local line = vim.api.nvim_get_current_line()
+				if line:sub(col + 1, col + 1):match("[%)%]%}'\"`]") then
+					vim.api.nvim_win_set_cursor(0, { row, col + 1 })
+				else
+					vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Tab>", true, false, true), "n", false)
+				end
+			end
+
+			local function jump_out_pair_backward_or_stab()
+				local row, col = unpack(vim.api.nvim_win_get_cursor(0))
+				local line = vim.api.nvim_get_current_line()
+				if line:sub(col, col):match("[%(%[%{'\"`]") then
+					vim.api.nvim_win_set_cursor(0, { row, math.max(col - 1, 0) })
+				else
+					vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<S-Tab>", true, false, true), "n", false)
+				end
+			end
+
+			local kind_icons = {
+				Text = "󰉿",
+				Method = "󰆧",
+				Function = "",
+				Constructor = "",
+				Field = "󰜢",
+				Variable = "",
+				Class = "",
+				Interface = "",
+				Module = "",
+				Property = "󰜢",
+				Unit = "",
+				Value = "󰎠",
+				Enum = "󰕘",
+				Keyword = "󰌋",
+				Snippet = "",
+				Color = "󰏘",
+				File = "",
+				Reference = "",
+				Folder = "󰉋",
+				EnumMember = "",
+				Constant = "",
+				Struct = "󰙅",
+				Event = "",
+				Operator = "󰆕",
+				TypeParameter = "󰊄",
+			}
+
+			cmp.setup({
+				snippet = {
+					expand = function(args)
+						if luasnip then
+							luasnip.lsp_expand(args.body)
+						end
+					end,
+				},
+				mapping = cmp.mapping.preset.insert({
+					["<CR>"] = cmp.mapping.confirm({ select = true }),
+					["<Tab>"] = cmp.mapping(function()
+						if cmp.visible() then
+							cmp.select_next_item()
+						elseif luasnip and luasnip.expand_or_jumpable() then
+							luasnip.expand_or_jump()
+						else
+							jump_out_pair_forward_or_tab()
+						end
+					end, { "i", "s" }),
+					["<S-Tab>"] = cmp.mapping(function()
+						if cmp.visible() then
+							cmp.select_prev_item()
+						elseif luasnip and luasnip.jumpable(-1) then
+							luasnip.jump(-1)
+						else
+							jump_out_pair_backward_or_stab()
+						end
+					end, { "i", "s" }),
+					["<C-b>"] = cmp.mapping.scroll_docs(-4),
+					["<C-f>"] = cmp.mapping.scroll_docs(4),
+					["<C-p>"] = cmp.mapping.close(),
+				}),
+				completion = { completeopt = "menu,menuone" },
+				formatting = {
+					fields = { "kind", "abbr", "menu" },
+					format = function(entry, vim_item)
+						vim_item.kind = (kind_icons[vim_item.kind] or "")
+						vim_item.menu = ({
+							luasnip = "[Snip]",
+							buffer = "[Buf]",
+							path = "[Path]",
+							nvim_lsp = "[LSP]",
+							vimtex = "[Vimtex]",
+							omni = (vim.inspect(vim_item.menu):gsub('%"', "")),
+						})[entry.source.name] or ""
+						return vim_item
+					end,
+				},
+				sources = cmp.config.sources({
+					{ name = "luasnip" },
+					{
+						name = "buffer",
+						option = {
+							get_bufnrs = function()
+								local bufs = {}
+								for _, win in ipairs(vim.api.nvim_list_wins()) do
+									bufs[vim.api.nvim_win_get_buf(win)] = true
+								end
+								return vim.tbl_keys(bufs)
+							end,
+						},
+					},
+					{ name = "nvim_lsp" },
+					{ name = "path" },
+					{
+						name = "rg",
+						keyword_length = 3,
+						option = {
+							additional_arguments = "--hidden --max-depth 2",
+							pattern = "[a-zA-Z_]+",
+							cwd = ".",
+							debounce = 500,
+							context_before = 2,
+							context_after = 4,
+						},
+					},
+					{ name = "latex_symbols", option = { strategy = 0 } },
+					{ name = "vimtex" },
+					{ name = "omni", trigger_characters = { "{", "\\" } },
+					{
+						name = "bufname",
+						option = {
+							current_buf_only = false,
+							bufs = function()
+								return vim.api.nvim_list_bufs()
+							end,
+							extractor = function(filename, full_path)
+								return { filename:match("[^.]*") }
+							end,
+						},
+					},
+				}),
+				experimental = { ghost_text = true },
+			})
+		end,
+	},
+
+	---------------------------------------------------------------------------
+	-- 4. wilder.nvim：命令行增强配置
+	---------------------------------------------------------------------------
+	{
+		"gelguy/wilder.nvim",
+		event = "CmdlineEnter",
+		dependencies = { { "romgrk/fzy-lua-native", build = "make" } },
+		config = function()
+			local wilder = safe_require("wilder")
+			if not wilder then
+				return
+			end
+
+			wilder.setup({ modes = { ":", "/", "?" } })
+			wilder.set_option("next_key", 0)
+			wilder.set_option("previous_key", 0)
+			wilder.set_option("accept_key", 0)
+			wilder.set_option("reject_key", 0)
+
+			local highlighters = {}
+			if type(wilder.pcre2_highlighter) == "function" then
+				table.insert(highlighters, wilder.pcre2_highlighter())
+			end
+			table.insert(highlighters, wilder.basic_highlighter())
+
+			local cmdline_pl = wilder.cmdline_pipeline({
+				fuzzy = 1,
+				fuzzy_filter = (type(wilder.lua_fzy_filter) == "function" and wilder.lua_fzy_filter())
+					or wilder.vim_fuzzy_filter(),
+			})
+			local search_pl = wilder.search_pipeline()
+
+			wilder.set_option(
+				"pipeline",
+				wilder.branch(
+					{ wilder.check(function(_, x)
+						return vim.fn.empty(x) == 1
+					end), wilder.history(15) },
+					cmdline_pl,
+					search_pl
+				)
+			)
+
+			local renderer = wilder.popupmenu_renderer(wilder.popupmenu_border_theme({
+				highlights = { border = "Normal", accent = "WilderAccent", selected_accent = "WilderSelectedAccent" },
+				highlighter = highlighters,
+				left = { " ", wilder.popupmenu_devicons() },
+				right = { " ", wilder.popupmenu_scrollbar() },
+				max_height = 15,
+				pumblend = 0,
+			}))
+			wilder.set_option("renderer", renderer)
+
+			pcall(vim.api.nvim_set_hl, 0, "WilderAccent", { fg = "#00afaf" })
+			pcall(vim.api.nvim_set_hl, 0, "WilderSelectedAccent", { fg = "#00afaf", bg = "#4e4e4e" })
+
+			vim.api.nvim_set_keymap(
+				"c",
+				"<Tab>",
+				"wilder#in_context() ? wilder#next() : '<Tab>'",
+				{ noremap = true, expr = true, silent = true }
+			)
+			vim.api.nvim_set_keymap(
+				"c",
+				"<S-Tab>",
+				"wilder#in_context() ? wilder#previous() : '<C-d>'",
+				{ noremap = true, expr = true, silent = true }
+			)
+			vim.api.nvim_set_keymap(
+				"c",
+				"<Down>",
+				"wilder#in_context() ? wilder#next() : '<Down>'",
+				{ noremap = true, expr = true, silent = true }
+			)
+			vim.api.nvim_set_keymap(
+				"c",
+				"<Up>",
+				"wilder#in_context() ? wilder#previous() : '<Up>'",
+				{ noremap = true, expr = true, silent = true }
+			)
+
+			pcall(vim.cmd, "silent! UpdateRemotePlugins")
+		end,
+	},
+}

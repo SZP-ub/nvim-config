@@ -1,0 +1,114 @@
+# base
+snippet base
+    CC = gcc
+    CFLAGS = -std=c17 -O0 -g -Wall
+
+    all: $1
+
+    %.o: %.c
+        $(CC) $(CFLAGS) -c $< -o $@
+
+    ${1:out}: $1.o
+        $(CC) $(CFLAGS) $+ -o $@
+
+    .PHONY: clean mrproper
+    clean:
+        rm -f *.o *.core
+
+    mrproper: clean
+        rm -f $1
+
+# $^
+snippet ^
+    $^
+
+# $<
+snippet <
+    $<
+
+# $+
+snippet +
+    $+
+
+# $?
+snippet ?
+    $?
+
+# $@
+snippet @
+    $@
+
+# $|
+snippet |
+    $|
+
+# $*
+snippet *
+    $*
+
+# $%
+snippet %
+    $%
+
+# add
+snippet add
+	${1:out}: $1.o
+		$(CC) $(CFLAGS) $+ -o $@
+
+# out
+snippet out
+    ${1:VISUAL}: ${2:VISUAL}
+        $(CC) $(CFLAGS) $^ -o $1.out
+
+# wildcard
+snippet wild
+    $(wildcard $1)
+
+# patsubst
+snippet patsubst
+     $(patsubst ${1:VISUAL}, ${2:VISUAL}, ${3:VISUAL})
+
+# $()
+snippet 4
+    $($1)$0
+
+# VPATH
+snippet PATH
+    VPATH = ${1:dir1}:${2:dir2}
+
+# vpath
+snippet path
+    vpath = ${1:pattern} ${2:directories}
+
+# print
+snippet print
+	print-%: ; @echo $*=$($*)
+
+# ifeq
+snippet if
+	ifeq (${1:cond0}, ${2:cond1})
+		${0:${VISUAL}}
+	endif
+
+# ifeq ... else ... endif
+snippet ife
+	ifeq (${1:cond0}, ${2:cond1})
+		${3:${VISUAL}}
+	else
+		${0}
+	endif
+
+# else ...
+snippet el
+	else
+		${0:${VISUAL}}
+
+# .DEFAULT_GOAL := target
+snippet default
+	.DEFAULT_GOAL := ${1}
+
+# help target for self-documented Makefile
+snippet help
+	help: ## Prints help for targets with comments
+		@cat $(MAKEFILE_LIST) | grep -E '^[a-zA-Z_-]+:.*?## .*$$' | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $\$1, $\$2}'
+	${0}

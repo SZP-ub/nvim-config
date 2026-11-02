@@ -1,0 +1,216 @@
+# -------------------------
+# Sections and Paragraphs
+# -------------------------
+snippet h1 "Section" b
+    # ${1:Section Name}
+    $0
+
+snippet h2 "Sub Section" b
+    ## ${1:Section Name}
+    $0
+
+snippet h3 "SubSub Section" b
+    ### ${1:Section Name}
+    $0
+
+snippet h4 "Paragraph" b
+    #### ${1:Paragraph Name}
+    $0
+
+snippet h5 "Paragraph" b
+    ##### ${1:Paragraph Name}
+    $0
+
+# -------------------------
+# Text formatting
+# -------------------------
+snippet bld "bold"
+    **${1:${VISUAL}}**$0
+
+snippet bit "bold italics"
+    ***${1:${VISUAL}}***$0
+
+snippet "/*" "Comment"
+    <!-- ${1:${VISUAL}} -->$0
+
+# -------------------------
+# Common stuff
+# -------------------------
+snippet link "Link to something"
+    [${1:${VISUAL:Text}}](${3:https://${2:www.url.com}})$0
+
+snippet img "Image"
+    ![${1:pic alt}](${2:path}${3/.+/ "/}${3:opt title}${3/.+/"/})$0
+
+snippet [
+	[${1:text}](${2:address})
+
+snippet [*
+	[${1:link}](${2:`@*`})
+
+snippet [c
+	[${1:link}](${2:`@+`})
+
+snippet ["
+	[${1:text}](https://${2:address} "${3:title}")
+
+snippet ["*
+	[${1:link}](${2:`@*`} "${3:title}")
+
+snippet ["c
+	[${1:link}](${2:`@+`} "${3:title}")
+
+snippet [:
+	[${1:id}]: https://${2:url}
+
+snippet [:*
+	[${1:id}]: ${2:`@*`}
+
+snippet [:c
+	[${1:id}]: ${2:`@+`}
+
+snippet [:"
+	[${1:id}]: https://${2:url} "${3:title}"
+
+snippet [:"*
+	[${1:id}]: ${2:`@*`} "${3:title}"
+
+snippet [:"c
+	[${1:id}]: ${2:`@+`} "${3:title}"
+
+snippet ![
+	![${1:alttext}](${2:/images/image.jpg})
+
+snippet ![*
+	![${1:alt}](${2:`@*`})
+
+snippet ![c
+	![${1:alt}](${2:`@+`})
+
+snippet !["
+	![${1:alttext}](${2:/images/image.jpg} "${3:title}")
+
+snippet !["*
+	![${1:alt}](${2:`@*`} "${3:title}")
+
+snippet !["c
+	![${1:alt}](${2:`@+`} "${3:title}")
+
+snippet ![:
+	![${1:id}]: ${2:url}
+
+snippet ![:*
+	![${1:id}]: ${2:`@*`}
+
+snippet ![:"
+	![${1:id}]: ${2:url} "${3:title}"
+
+snippet ![:"*
+	![${1:id}]: ${2:`@*`} "${3:title}"
+
+snippet ![:"c
+	![${1:id}]: ${2:`@+`} "${3:title}"
+
+snippet <
+	<http://${1:url}>
+
+snippet <*
+	<`@*`>
+
+snippet <c
+	<`@+`>
+
+snippet __ Bold
+	__$0__
+
+snippet --- Front matter
+	---
+	$0
+	---
+snippet ====
+	`repeat('=', strlen(getline(line('.') - 3)))`
+
+	${0}
+
+snippet -
+	-   ${0}
+
+snippet ----
+	`repeat('-', strlen(getline(line('.') - 3)))`
+
+	${0}
+
+snippet blockquote
+	{% blockquote %}
+	${0:quote}
+	{% endblockquote %}
+
+snippet blockquote-author
+	{% blockquote ${1:author}, ${2:title} %}
+	${0:quote}
+	{% endblockquote %}
+
+snippet blockquote-link
+	{% blockquote ${1:author} ${2:URL} ${3:link_text} %}
+	${0:quote}
+	{% endblockquote %}
+
+# Language.
+snippet code
+	\`\`\`${1:language}
+	${2:code}
+	\`\`\`
+
+snippet codeblock-short
+	{% codeblock %}
+	${0:code_snippet}
+	{% endcodeblock %}
+
+snippet codeblock-full
+	{% codeblock ${1:title} lang:${2:language} ${3:URL} ${4:link_text} %}
+	${0:code_snippet}
+	{% endcodeblock %}
+
+snippet gist-full
+	{% gist ${1:gist_id} ${0:filename} %}
+
+snippet gist-short
+	{% gist ${0:gist_id} %}
+
+snippet img
+	{% img ${1:class} ${2:URL} ${3:width} ${4:height} ${5:title_text} ${0:alt_text} %}
+
+snippet youtube
+	{% youtube ${0:video_id} %}
+
+snippet tb
+	|  ${0:factors}      |    ${1:a}       |  ${2:b}   	|
+	| ------------- |-------------  | ------- |
+	|    ${3:f1}    |    Y          | N       |
+	|    ${4:f2}    |    Y          | N       |
+
+# The quote should appear only once in the text. It is inherently part of it.
+# See http://octopress.org/docs/plugins/pullquote/ for more info.
+
+snippet pullquote
+	{% pullquote %}
+	${1:text} {" ${2:quote} "} ${0:text}
+	{% endpullquote %}
+
+# Definition lists
+snippet : Definition list
+	$1
+	: $0
+
+snippet :: Alternate definition list
+	$1
+	  - $0
+
+# -------------------------
+# Japanese Furigana
+# -------------------------
+snippet ruby "Furigana / 日语注音"
+    <ruby>${1:汉字}<rt>${2:假名}</rt></ruby>$0
+
+snippet rubby "Furigana / 选中汉字直接注音"
+	<ruby>${1:${VISUAL:汉字}}<rt>${2:假名}</rt></ruby>$0

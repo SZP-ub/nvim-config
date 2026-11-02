@@ -1,0 +1,194 @@
+---@diagnostic disable: undefined-global
+return {
+
+	---------------------------------------------------------------------------
+	-- 1. nvim-treesitter 核心配置
+	---------------------------------------------------------------------------
+	{
+		"nvim-treesitter/nvim-treesitter",
+		event = "VeryLazy",
+		branch = "master",
+		build = ":TSUpdate",
+		dependencies = {
+			"nvim-treesitter/nvim-treesitter-textobjects",
+		},
+		config = function()
+			-- 强制 nvim-treesitter 使用 MSVC 编译器
+			require("nvim-treesitter.install").compilers = { "cl" }
+
+			require("nvim-treesitter.configs").setup({
+				-- 安装相关配置
+				auto_install = false,
+				sync_install = false,
+				ensure_installed = {
+					-- "cmake",
+					-- "bash",
+					"diff",
+					-- "c",
+					-- "cpp",
+					"lua",
+					"vim",
+					-- "vimdoc",
+					-- "query",
+					-- "elixir",
+					-- "heex",
+					-- "javascript",
+					-- "html",
+					-- "json",
+					"markdown",
+					"markdown_inline",
+					-- "python",
+					-- "typescript",
+					-- "java",
+				},
+				ignore_install = {},
+
+				-- 高亮模块 (highlight)
+				highlight = {
+					enable = true,
+					-- disable = { "latex" }, -- 禁止 treesitter 为 latex 提供高亮
+					additional_vim_regex_highlighting = false,
+				},
+
+				-- 缩进模块 (indentation)
+				indent = {
+					enable = true,
+				},
+
+				-- 增量选择模块 (incremental selection)
+				incremental_selection = {
+					enable = true,
+					keymaps = {
+						init_selection = "gnn",
+						node_incremental = "grn",
+						scope_incremental = "grc",
+						node_decremental = "grm",
+					},
+				},
+
+				-- 文本对象模块 (textobjects - 依赖 nvim-treesitter-textobjects 插件)
+				textobjects = {
+					select = {
+						enable = true,
+						lookahead = true,
+						keymaps = {
+							["af"] = "@function.outer",
+							["if"] = "@function.inner",
+							["ac"] = "@class.outer",
+							["ic"] = "@class.inner",
+							["ap"] = "@parameter.outer",
+							["ip"] = "@parameter.inner",
+						},
+						selection_modes = {
+							["@parameter.outer"] = "v",
+							["@function.outer"] = "v",
+						},
+						include_surrounding_whitespace = false,
+					},
+					move = {
+						enable = true,
+						set_jumps = true,
+						goto_next_start = { ["]f"] = "@function.outer" },
+						goto_next_end = { ["]F"] = "@function.outer" },
+						goto_previous_start = { ["[f"] = "@function.outer" },
+						goto_previous_end = { ["[F"] = "@function.outer" },
+					},
+					swap = {
+						enable = true,
+						swap_next = { ["gsp"] = "@parameter.inner" },
+						swap_previous = { ["gsP"] = "@parameter.inner" },
+					},
+					lsp_interop = {
+						enable = true,
+						peek_definition_code = {
+							["gpf"] = "@function.outer",
+							["gpc"] = "@class.outer",
+						},
+					},
+				},
+			})
+		end,
+	},
+
+	---------------------------------------------------------------------------
+	-- 2. nvim-treesitter-textobjects 按键声明（用于 lazy.nvim 懒加载提示）
+	---------------------------------------------------------------------------
+	{
+		"nvim-treesitter/nvim-treesitter-textobjects",
+		lazy = true,
+		keys = {
+			-- 文本对象
+			{ "af", mode = { "o", "x" } },
+			{ "if", mode = { "o", "x" } },
+			{ "ac", mode = { "o", "x" } },
+			{ "ic", mode = { "o", "x" } },
+			{ "ap", mode = { "o", "x" } },
+			{ "ip", mode = { "o", "x" } },
+
+			-- 函数移动
+			{ "]f", mode = "n" },
+			{ "[f", mode = "n" },
+			{ "]F", mode = "n" },
+			{ "[F", mode = "n" },
+
+			-- 参数交换
+			{ "gsp", mode = "n" },
+			{ "gsP", mode = "n" },
+
+			-- LSP Peek
+			{ "gpf", mode = "n" },
+			{ "gpc", mode = "n" },
+		},
+	},
+
+	---------------------------------------------------------------------------
+	-- 3. rainbow-delimiters.nvim：彩虹括号
+	---------------------------------------------------------------------------
+	{
+		"HiPhish/rainbow-delimiters.nvim",
+		config = function()
+			local rainbow_delimiters = require("rainbow-delimiters")
+			vim.g.rainbow_delimiters = {
+				strategy = {
+					[""] = rainbow_delimiters.strategy["global"],
+					commonlisp = rainbow_delimiters.strategy["local"],
+				},
+				query = {
+					[""] = "rainbow-delimiters",
+					latex = "rainbow-blocks",
+				},
+			}
+		end,
+	},
+
+	---------------------------------------------------------------------------
+	-- 4. wildfire.nvim：快速结构化选择
+	---------------------------------------------------------------------------
+	{
+		"sustech-data/wildfire.nvim",
+		dependencies = { "nvim-treesitter/nvim-treesitter" },
+		keys = {
+			{ "<CR>", mode = { "n", "x" }, desc = "wildfire 区块选择/扩展" },
+			{ "<BS>", mode = { "n", "x" }, desc = "wildfire 区块收缩" },
+		},
+		config = function()
+			require("wildfire").setup({
+				surrounds = {
+					{ "(", ")" },
+					{ "{", "}" },
+					{ "<", ">" },
+					{ "[", "]" },
+					{ "`", "`" },
+					{ '"', '"' },
+					{ "'", "'" },
+				},
+				keymaps = {
+					init_selection = "<CR>",
+					node_incremental = "<CR>",
+					node_decremental = "<BS>",
+				},
+				filetype_exclude = { "qf" },
+			})
+		end,
+	},
+}

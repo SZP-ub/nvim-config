@@ -1,0 +1,90 @@
+---@diagnostic disable: undefined-global
+return {
+	{
+		"lervag/vimtex",
+		lazy = false,
+		init = function()
+			-- vim.g.vimtex_disable_version_check = 1
+			vim.g.vimtex_version_check = 0
+		end,
+		config = function()
+			vim.g.tex_flavor = "latex"
+			vim.g.vimtex_compiler_method = "latexmk"
+
+			-- 禁用字符替换与隐藏，看全真实的 LaTeX 代码
+			vim.g.vimtex_syntax_conceal_disable = 1
+			vim.opt.conceallevel = 0
+
+			-- Windows 推荐编译选项（XeLaTeX，单次静默调用）
+			vim.g.vimtex_compiler_latexmk = {
+				executable = "latexmk",
+				options = {
+					"-xelatex",
+					"-file-line-error",
+					"-synctex=1",
+					"-interaction=nonstopmode",
+				},
+				continuous = 0,
+				callback = 0,
+			}
+			vim.g.vimtex_compiler_latexmk_clean_on_exit = 1
+			vim.g.vimtex_clean_on_exit = 1
+
+			-- 关闭保存时连打编译，避免 Windows 下临时文件/PDF 锁死报错
+			vim.g.vimtex_compiler_autostart = 0
+			vim.g.vimtex_compiler_start_on_save = 0
+
+			-- Windows 下最佳 PDF 查看器：SumatraPDF
+			vim.g.vimtex_view_method = "general"
+			vim.g.vimtex_view_general_viewer = "SumatraPDF"
+			vim.g.vimtex_view_general_options = "-reuse-instance -forward-search @tex @line @pdf"
+
+			-- 过滤干扰性的无关警告
+			vim.g.vimtex_quickfix_ignore_filters = {
+				"Underfull",
+				"Overfull",
+				"specifier changed to",
+				"Token not allowed in a PDF string",
+				"LaTeX Warning: Float too large for page",
+				"contains only floats",
+				"^LaTeX Warning:",
+				"^Warning:",
+				"^Package .* Warning:",
+				"Reference .* undefined",
+				"Citation .* undefined",
+			}
+			vim.g.vimtex_quickfix_open_on_warning = 0
+
+			-- 目录大纲（TOC）配置
+			vim.g.vimtex_toc_config = {
+				name = "TOC",
+				layers = { "content", "todo", "include" },
+				split_width = 25,
+				todo_sorted = 0,
+				show_help = 1,
+				show_numbers = 1,
+			}
+
+			-- tex 专属快捷键
+			vim.api.nvim_create_autocmd("FileType", {
+				pattern = "tex",
+				callback = function()
+					local opts = { buffer = 0, noremap = true, silent = true }
+					vim.keymap.set("n", "<space>lv", "<plug>(vimtex-view)", opts)
+					vim.keymap.set("n", "<space>ll", "<plug>(vimtex-compile)", opts)
+					vim.keymap.set("n", "<space>le", "<plug>(vimtex-errors)", opts)
+					vim.keymap.set("n", "<space>lc", "<plug>(vimtex-clean)", opts)
+					vim.keymap.set("n", "<space>lt", "<plug>(vimtex-toc-open)", opts)
+					vim.keymap.set("n", "<space>li", "<plug>(vimtex-info)", opts)
+					vim.keymap.set("n", "<space>lf", function()
+                		require("conform").format({
+                			bufnr = 0,
+               				lsp_fallback = true,
+               				timeout_ms = 2000,
+            			})
+        			end, { buffer = 0, desc = "[VimTeX] Format document" })
+				end,
+			})
+		end,
+	},
+}

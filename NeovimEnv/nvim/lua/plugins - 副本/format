@@ -1,0 +1,211 @@
+---@diagnostic disable: undefined-global
+return {
+	-- =========================
+	-- mason-tool-installer：格式化 / lint 工具自动安装
+	-- =========================
+	{
+		"WhoIsSethDaniel/mason-tool-installer.nvim",
+		event = { "BufReadPre", "BufNewFile" },
+		dependencies = {
+			"mason-org/mason.nvim",
+		},
+		config = function()
+			local ok, mti = pcall(require, "mason-tool-installer")
+			if not ok then
+				return
+			end
+
+			mti.setup({
+				ensure_installed = {
+					-- "clang-format", -- C/C++
+					-- "stylua", -- Lua
+					-- "prettier", -- JSON/Markdown/YAML/HTML/CSS/JS/TS
+					"codespell", -- 拼写检查
+					"tex-fmt", -- LaTeX 格式化工具
+				},
+				auto_update = true,
+				run_on_start = true,
+			})
+		end,
+	},
+
+	-- =========================
+	-- conform.nvim：手动触发“先格式化再保存”
+	-- =========================
+	{
+		"stevearc/conform.nvim",
+		keys = {
+			{
+				"<space>w",
+				function()
+					local conform = require("conform")
+					conform.format({
+						lsp_fallback = true,
+						timeout_ms = 2000,
+					})
+					vim.cmd("write")
+				end,
+				mode = "n",
+				desc = "Format buffer and write",
+			},
+		},
+
+		config = function()
+			local ok, conform = pcall(require, "conform")
+			if not ok then
+				return
+			end
+
+			conform.setup({
+				formatters_by_ft = {
+					-- c = { "clang_format" },
+					-- cpp = { "clang_format" },
+					-- lua = { "stylua" },
+					-- json = { "prettier" },
+					-- jsonc = { "prettier" },
+					markdown = { "prettier" },
+					["markdown.mdx"] = { "prettier" },
+					-- yaml = { "prettier" },
+					-- html = { "prettier" },
+					-- css = { "prettier" },
+					-- javascript = { "prettier" },
+					-- typescript = { "prettier" },
+					-- javascriptreact = { "prettier" },
+					-- typescriptreact = { "prettier" },
+					--
+					-- make = { "mbake" },
+					-- mk = { "mbake" },
+					-- makefile = { "mbake" },
+					tex = { "tex-fmt" },
+				},
+				formatters = {
+					prettier = {
+						prepend_args = { "--tab-width", "4" },
+					},
+					mbake = {
+						command = vim.fn.stdpath("data") .. "/mason/bin/mbake",
+						args = { "format", "--stdin" },
+						stdin = true,
+					},
+				},
+			})
+		end,
+	},
+
+	-- =========================
+	-- nvim-lint：保存后自动 lint
+	-- =========================
+	{
+		"mfussenegger/nvim-lint",
+		event = "VeryLazy",
+		config = function()
+			local ok, lint = pcall(require, "lint")
+			if not ok then
+				return
+			end
+
+			lint.linters_by_ft = {
+				markdown = { "codespell" },
+				lua = { "codespell" },
+				-- c = { "codespell" },
+				-- cpp = { "codespell" },
+			}
+
+			vim.api.nvim_create_autocmd("BufWritePost", {
+				group = vim.api.nvim_create_augroup("nvim-lint-auto", { clear = true }),
+				callback = function(args)
+					if vim.bo[args.buf].buftype ~= "" then
+						return
+					end
+					lint.try_lint()
+				end,
+			})
+		end,
+	},
+
+	-- =========================
+	-- Trouble：诊断 / LSP 列表可视化与 Winbar
+	-- =========================
+	{
+		"folke/trouble.nvim",
+		event = "VeryLazy",
+		keys = {
+			{ "<leader>gs", "<CMD>Trouble symbols toggle focus=false<CR>", desc = "[Trouble] Toggle symbols " },
+		},
+		specs = {
+			{
+				"folke/snacks.nvim",
+				event = "VeryLazy",
+				opts = function(_, opts)
+					local ok, snacks_trouble = pcall(require, "trouble.sources.snacks")
+					if not ok or type(snacks_trouble) ~= "table" or type(snacks_trouble.actions) ~= "table" then
+						return opts
+					end
+
+					return vim.tbl_deep_extend("force", opts or {}, {
+						picker = {
+							actions = snacks_trouble.actions,
+						},
+					})
+				end,
+			},
+		},
+		opts = {
+			focus = false,
+			warn_no_results = false,
+			open_no_results = true,
+			preview = {
+				type = "float",
+				relative = "editor",
+				title = "Preview",
+				title_pos = "center",
+				position = { 0.3, 0.3 },
+				size = { width = 0.6, height = 0.5 },
+				zindex = 200,
+			},
+		},
+		config = function(_, opts)
+			require("trouble").setup(opts or {})
+
+			local symbols = require("trouble").statusline({
+				mode = "lsp_document_symbols",
+				groups = {},
+				title = false,
+				filter = { range = true },
+				format = "{kind_icon}{symbol.name:Normal}",
+				hl_group = "lualine_b_normal",
+			})
+
+			local function winbar_symbols_fallback()
+				if symbols.has and symbols.has() then
+					return symbols.get()
+				end
+				return " "
+			end
+
+			local lualine_ok, lualine = pcall(require, "lualine")
+			if not lualine_ok then
+				return
+			end
+
+			local lualine_opts = lualine.get_config() or {}
+			lualine_opts.winbar = lualine_opts.winbar or {}
+
+			if type(lualine_opts.winbar) == "table" and not lualine_opts.winbar.lualine_b then
+				lualine_opts.winbar.lualine_b = {}
+			else
+				lualine_opts.winbar.lualine_b = lualine_opts.winbar.lualine_b or {}
+			end
+
+			table.insert(lualine_opts.winbar.lualine_b, 1, {
+				winbar_symbols_fallback,
+				color = { gui = "none" },
+				cond = function()
+					return true
+				end,
+			})
+
+			lualine.setup(lualine_opts)
+		end,
+	},
+}

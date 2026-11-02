@@ -1,0 +1,9 @@
+# 忽略运行数据与缓存
+NeovimEnv/nvim-data/
+NeovimEnv/.copilot/
+NeovimEnv/vimtex/
+
+# 忽略安装程序与大文件
+*.msi
+*.exe
+*.zip

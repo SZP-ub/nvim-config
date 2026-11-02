@@ -1,0 +1,49 @@
+---@diagnostic disable: undefined-global
+return {
+	"swaits/turbo-debug",
+	lazy = true,
+	config = function()
+		require("turbo-debug").setup({
+			keys = {
+				step_over = "n", -- remap a modal key
+				watch = false, -- disable a modal key
+			},
+			global_keys = {
+				toggle = "<leader>D", -- change the toggle chord
+			},
+			sidebar = "right", -- "left" (default) or "right"
+			help_on_enter = true, -- show help popup on debug mode entry (default false)
+
+			-- Optional theme swap for debug sessions. `nil` (default) keeps the
+			-- current colorscheme; any string is passed to `:colorscheme` on enter
+			-- and the original is restored on exit.
+			colorscheme = nil,
+
+			-- Auto stop-on-entry when no breakpoints are set (Turbo Pascal model):
+			-- press `c` on an empty-BP project and the debugger pauses at main().
+			-- Set false to always run until a breakpoint instead.
+			stop_on_entry_when_no_breakpoints = true,
+
+			-- Cap per-line value length in Scopes/Watches. Values longer than this
+			-- get truncated with `…`. Default 2000 only catches pathological register
+			-- dumps. Set 0 to disable truncation entirely.
+			max_value_width = 2000,
+
+			-- Console repaint throttle (ms). Max 1000/console_refresh_ms redraws per
+			-- second when the debugged program spams stdout. Prevents editor DOS.
+			console_refresh_ms = 50,
+
+			-- Clear the Console pane on session start/restart (preserves the
+			-- terminal channel — only wipes scrollback).
+			clear_console_on_start = true,
+
+			-- Scope names to default-collapse in Scopes. dapui auto-collapses any
+			-- scope the adapter marks `expensive`, but codelldb doesn't flag
+			-- Registers as expensive even though it's a huge dump.
+			collapsed_scopes = { "Registers" },
+
+			-- Dim inactive dapui pane borders so the focused pane is obvious.
+			active_window_highlight = true,
+		})
+	end,
+}

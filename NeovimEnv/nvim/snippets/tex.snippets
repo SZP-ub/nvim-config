@@ -1,0 +1,853 @@
+# PREAMBLE
+
+# documentclass without options
+snippet dcl "\documentclass{}"
+	\documentclass{${1:class}} ${0}
+
+# documentclass with options
+snippet dclo "\documentclass[]{}"
+	\documentclass[${1:options}]{${2:class}} ${0}
+
+snippet tmplt "Template"
+	\documentclass{${1:article}}
+
+	\usepackage{import}
+	\usepackage{pdfpages}
+	\usepackage{transparent}
+	\usepackage{xcolor}
+	${2}
+
+	\newcommand{\incfig}[2][1]{%
+		\def\svgwidth{#1\columnwidth}
+		\import{./figures/}{#2.pdf_tex}
+	}
+	${3}
+	\pdfsuppresswarningpagegroup=1
+
+	\begin{document}
+		${0}
+	\end{document}
+
+# newcommand
+snippet nc "\newcommand"
+	\newcommand{\${1:cmd}}[${2:opt}]{${3:realcmd}} ${0}
+
+# usepackage
+snippet up "\usepackage"
+	\usepackage[${1:options}]{${2:package}} ${0}
+
+# newunicodechar
+snippet nuc "\newunicodechar"
+	\newunicodechar{${1}}{${2:\ensuremath}${3:tex-substitute}}} ${0}
+
+# DeclareMathOperator
+snippet dmo "\DeclareMathOperator"
+	\DeclareMathOperator{${1}}{${2}} ${0}
+
+
+# DOCUMENT
+
+# \begin{}...\end{}
+snippet begin "\begin{} ... \end{} block"
+	\begin{${1:env}}
+		${0:${VISUAL}}
+	\end{$1}
+
+# Maketitle
+snippet mkt "maketitle"
+	\maketitle
+
+# Tabular
+snippet tab "tabular (or arbitrary) environment"
+	\begin{${1:tabular}}{${2:c}}
+		${0:${VISUAL}}
+	\end{$1}
+
+snippet thm "thm (or arbitrary) environment with optional argument"
+	\begin[${1:author}]{${2:thm}}
+		${0:${VISUAL}}
+	\end{$2}
+
+snippet center "center environment"
+	\begin{center}
+		${0:${VISUAL}}
+	\end{center}
+
+# Align(ed)
+snippet ali "align(ed) environment"
+	\begin{align${1:ed}}
+		\label{eq:${2}}
+		${0:${VISUAL}}
+	\end{align$1}
+
+# Gather(ed)
+snippet gat "gather(ed) environment"
+	\begin{gather${1:ed}}
+		${0:${VISUAL}}
+	\end{gather$1}
+
+# Equation
+snippet eq "equation environment"
+	\begin{equation}
+		${0:${VISUAL}}
+	\end{equation}
+
+# Equation (labeled)
+snippet eql "Labeled equation environment"
+	\begin{equation}
+		\label{eq:${2}}
+		${0:${VISUAL}}
+	\end{equation}
+
+# Equation (unnumbered)
+snippet eq* "unnumbered equation environment"
+	\begin{equation*}
+		${0:${VISUAL}}
+	\end{equation*}
+
+# Unnumbered Equation using \[ \]
+snippet brack "unnumbered equation: \\[ ... \\]"
+	\[
+		${0:${VISUAL}}
+	\]
+
+# Equation array
+snippet eqnarray "eqnarray environment"
+	\begin{eqnarray}
+		${0:${VISUAL}}
+	\end{eqnarray}
+
+# Label
+snippet lab "\label"
+	\label{${1:eq:}${2:fig:}${3:tab:}${0}}
+
+# Enumerate
+snippet enum "enumerate environment"
+	\begin{enumerate}
+		\item ${0}
+	\end{enumerate}
+
+snippet enuma "enumerate environment (a)"
+	\begin{enumerate}[(a)]
+		\item ${0}
+	\end{enumerate}
+
+snippet enumi "enumerate environment (i)"
+	\begin{enumerate}[(i)]
+		\item ${0}
+	\end{enumerate}
+
+# Itemize
+snippet item "itemize environment"
+	\begin{itemize}
+		\item ${0}
+	\end{itemize}
+
+snippet it "\item"
+	\item ${1:${VISUAL}}
+
+# Description
+snippet desc "description environment"
+	\begin{description}
+		\item[${1}] ${0}
+	\end{description}
+
+# Recursive item removed (not supported in simple SnipMate)
+snippet ]i "\item"
+	\item ${1}
+	${0}
+
+# Matrix
+snippet mat "smart matrix environment"
+	\begin{${1:p/b/v/V/B/small}matrix}
+		${0:${VISUAL}}
+	\end{$1matrix}
+
+# Cases
+snippet cas "cases environment"
+	\begin{cases}
+		${1:equation}, &\text{ if }${2:case}\\
+		${0:${VISUAL}}
+	\end{cases}
+
+# Split
+snippet spl "split environment"
+	\begin{split}
+		${0:${VISUAL}}
+	\end{split}
+
+# Part
+snippet part "document \\part"
+	\part{${1:part name}} % (fold)%
+	\label{prt:${2:$1}}
+	${0}
+	% part $2 (end)
+
+# Chapter
+snippet cha "\chapter"
+	\chapter{${1:chapter name}}%
+	\label{cha:${2:$1}}
+	${0}
+
+# Section
+snippet sec "\section"
+	\section{${1:section name}}%
+	\label{sec:${2:$1}}
+	${0}
+
+# Section without number
+snippet sec* "\section*"
+	\section*{${1:section name}}%
+	\label{sec:${2:$1}}
+	${0}
+
+# Sub Section
+snippet sub "\subsection"
+	\subsection{${1:subsection name}}%
+	\label{sub:${2:$1}}
+	${0}
+
+# Sub Section without number
+snippet sub* "\subsection*"
+	\subsection*{${1:subsection name}}%
+	\label{sub:${2:$1}}
+	${0}
+
+# Sub Sub Section
+snippet ssub "\subsubsection"
+	\subsubsection{${1:subsubsection name}}%
+	\label{ssub:${2:$1}}
+	${0}
+
+# Sub Sub Section without number
+snippet ssub* "\subsubsection*"
+	\subsubsection*{${1:subsubsection name}}%
+	\label{ssub:${2:$1}}
+	${0}
+
+# Paragraph
+snippet par "\paragraph"
+	\paragraph{${1:paragraph name}}%
+	\label{par:${2:$1}}
+	${0}
+
+# Paragraph*
+snippet par* "\paragraph*"
+	\paragraph*{${1:paragraph name}}%
+	\label{par:${2:$1}}
+	${0}
+
+# Sub Paragraph
+snippet subp "\subparagraph"
+	\subparagraph{${1:subparagraph name}}%
+	\label{subp:${2:$1}}
+	${0}
+
+# Sub Paragraph*
+snippet subp* "\subparagraph*"
+	\subparagraph*{${1:subparagraph name}}%
+	\label{subp:${2:$1}}
+	${0}
+
+snippet ni "\noindent"
+	\noindent
+	${0}
+
+# References
+snippet itd "description \\item"
+	\item[${1:description}] ${0:item}
+
+snippet figref "Figure reference to a figure"
+	${1:Figure}~\ref{${2:fig:}}
+
+snippet tabref "Table reference to a table"
+	${1:Table}~\ref{${2:tab:}}
+
+snippet listref "Listing reference to a listing"
+	${1:Listing}~\ref{${2:list}}
+
+snippet secref "Section reference to a section"
+	${1:Section}~\ref{sec:${2}} ${0}
+
+snippet pageref "page reference to a page"
+	${1:page}~\pageref{${2}} ${0}
+
+snippet index "\index"
+	\index{${1:index}} ${0}
+
+# Citations
+snippet citen "\citen"
+	\citen{${1}} ${0}
+
+# natbib citations
+snippet citep "\citep"
+	\citep{${1}} ${0}
+
+snippet citet "\citet"
+	\citet{${1}} ${0}
+
+snippet cite "\cite[]{ }"
+	\cite[${1}]{${2}} ${0}
+
+snippet citea "\citeauthor"
+	\citeauthor{${1}} ${0}
+
+snippet citey "\citeyear"
+	\citeyear{${1}} ${0}
+
+snippet fcite "\footcite[]{ }"
+	\footcite[${1}]{${2}}${0}
+
+# Formating text
+snippet ita "italic text"
+	\textit{${1:${VISUAL:text}}}${0}
+
+snippet bf "bold face text"
+	\textbf{${1:${VISUAL:text}}}${0}
+
+snippet under "underline text"
+	\underline{${1:${VISUAL:text}}}${0}
+
+snippet over "overline text"
+	\overline{${1:${VISUAL:text}}}${0}
+
+snippet emp "emphasize text"
+	\emph{${1:${VISUAL:text}}}${0}
+
+snippet sc "small caps text"
+	\textsc{${1:${VISUAL:text}}}${0}
+
+# Choosing font
+snippet sf "sans serif text"
+	\textsf{${1:${VISUAL:text}}}${0}
+
+snippet rm "roman font text"
+	\textrm{${1:${VISUAL:text}}}${0}
+
+snippet tt "typewriter (monospace) text"
+	\texttt{${1:${VISUAL:text}}}${0}
+
+snippet tsub "subscripted text"
+	\textsubscript{${1:${VISUAL:text}}}${0}
+
+snippet tsup "superscripted text"
+	\textsuperscript{${1:${VISUAL:text}}}${0}
+
+# Math font
+snippet mf "\mathfrak"
+	\mathfrak{${1:${VISUAL:text}}}${0}
+
+snippet mc "\mathcal"
+	\mathcal{${1:${VISUAL:text}}}${0}
+
+snippet ms "\mathscr"
+	\mathscr{${1:${VISUAL:text}}}${0}
+
+# misc
+snippet ft "\footnote"
+	\footnote{${1:${VISUAL:text}}}${0}
+
+snippet fig "figure environment (includegraphics)"
+	\begin{figure}
+	\begin{center}
+		\includegraphics[scale=${1}]{Figures/${2}}
+	\end{center}
+	\caption{${3}}
+	\label{fig:${4}}
+	\end{figure}
+		${0}
+
+snippet tikz "tikz figure environment (tikzpicture)"
+	\begin{figure}[htpb]
+	\begin{center}
+	\begin{tikzpicture}[scale=${1:1}, transform shape]
+		${2}
+	\end{tikzpicture}
+	\end{center}
+	\caption{${3}}%
+	\label{fig:${4}}
+	\end{figure}
+		${0}
+
+snippet subfig "subfigure environment"
+	\begin{subfigure}[${1}]{${2:\textwidth}}
+	\begin{center}
+		${3}
+	\end{center}
+	\caption{${4}}
+	\label{fig:${5}}
+	\end{subfigure}
+		${0}
+
+snippet tikzcd "tikzcd environment in equation"
+	\begin{equation}
+	\begin{tikzcd}
+		${1}
+	\end{tikzcd}
+	\end{equation}
+		${0}
+
+snippet tikzcd* "tikzcd environment in equation*"
+	\begin{equation*}
+	\begin{tikzcd}
+		${1}
+	\end{tikzcd}
+	\end{equation*}
+		${0}
+
+# math
+
+snippet stackrel "\stackrel{}{}"
+	\stackrel{${1:above}}{${2:below}} ${0}
+
+snippet frac "Fraction"
+	\frac{${1:num}}{${2:denom}} ${0}
+
+snippet sum "sum^_"
+	\sum^{${1:n}}_{${2:i=1}} ${0}
+
+snippet lim "lim_{ }"
+	\lim_{${1:n \to \infty}} ${0}
+
+snippet frame "frame environment"
+	\begin{frame}[${1:t}]
+		\frametitle{${2:title}}
+		\framesubtitle{${3:subtitle}}
+		${0:${VISUAL}}
+	\end{frame}
+
+snippet block "block environment"
+	\begin{block}{${1:title}}
+		${0:${VISUAL}}
+	\end{block}
+
+snippet alert "alert text"
+	\alert{${1:${VISUAL:text}}} ${0}
+
+snippet alertblock "alertblock environment"
+	\begin{alertblock}{${1:title}}
+		${0:${VISUAL}}
+	\end{alertblock}
+
+snippet exampleblock "exampleblock environment"
+	\begin{exampleblock}{${1:title}}
+		${0:${VISUAL}}
+	\end{exampleblock}
+
+snippet col2 "two-column environment"
+	\begin{columns}
+		\begin{column}{0.5\textwidth}
+			${1}
+		\end{column}
+		\begin{column}{0.5\textwidth}
+			${0}
+		\end{column}
+	\end{columns}
+
+snippet multicol2 "two-column environment with multicol"
+	\begin{multicols}{2}
+		${1}
+		\columnbreak
+		${0}
+	\end{multicols}
+
+snippet lbrace "\{ \{ \}"
+	\{ ${0} \}
+
+# delimiter
+snippet lr "left right"
+	\left${1} ${0:${VISUAL}} \right$1
+
+snippet lrpar "left( right)"
+	\left( ${0:${VISUAL}} \right)
+
+snippet lr| "left| right|"
+	\left| ${0:${VISUAL}} \right|
+
+snippet lr{ "left\{ right\}"
+	\left\{ ${0:${VISUAL}} \right\}
+
+snippet lr[ "left[ right]"
+	\left[ ${0:${VISUAL}} \right]
+
+snippet lra "langle rangle"
+	\langle ${0:${VISUAL}} \rangle
+
+# Code listings
+snippet lst "listing environment"
+	\begin{listing}[language=${1:language}]
+		${0:${VISUAL}}
+	\end{listing}
+
+snippet lsi "\lstinline"
+	\lstinline|${1}| ${0}
+
+# Hyperlinks
+snippet url "\url"
+	\url{${1}} ${0}
+
+snippet href "\href"
+	\href{${1}}{${2}} ${0}
+
+# enquote from package csquotes
+snippet enq "enquote"
+	\enquote{${1:${VISUAL:text}}} ${0}
+
+# Time derivative
+snippet ddt "time derivative"
+	\frac{d}{dt} {$1} {$0}
+
+# Limit
+snippet limit "limit"
+	\lim_{{$1}} {{$2}} {$0}
+
+# Partial derivative
+snippet pdv "partial derivation"
+	\frac{\partial {$1}}{\partial {$2}} {$0}
+
+# Second order partial derivative
+snippet ppdv "second partial derivation"
+	\frac{\partial^2 {$1}}{\partial {$2} \partial {$3}} {$0}
+
+# Ordinary derivative
+snippet dv "derivative"
+	\frac{d {$1}}{d {$2}} {$0}
+
+# Summation
+snippet summ "summation"
+	\sum_{{$1}} {$0}
+
+# Shorthand for time derivative
+snippet dot "dot"
+	\dot{{$1}} {$0}
+
+# Shorthand for second order time derivative
+snippet ddot "ddot"
+	\ddot{{$1}} {$0}
+
+# Vector
+snippet vec "vector"
+	\vec{{$1}} {$0}
+
+# Bar
+snippet bar "bar"
+	\bar{{$1}} {$0}
+
+# Cross product
+snippet x "cross product"
+	\times {$0}
+
+# Dot product
+snippet dotprod ". dot product"
+	\cdot {$0}
+
+# Integral
+snippet int "integral"
+	\int_{{$1}}^{{$2}} {$3} \: d{$4} {$0}
+
+# Right arrow
+snippet ra "rightarrow"
+	\rightarrow {$0}
+
+# Long right arrow
+snippet lra "longrightarrow"
+	\longrightarrow {$0}
+
+
+snippet lemma "Lemma" b
+	\begin{lemma}
+		${0:${VISUAL}}
+	\end{lemma}
+
+snippet prop "Proposition" b
+	\begin{prop}[$1]
+		${0:${VISUAL}}
+	\end{prop}
+
+snippet thrm "Theorem" b
+	\begin{theorem}[$1]
+		${0:${VISUAL}}
+	\end{theorem}
+
+snippet post "postulate" b
+	\begin{postulate}[$1]
+		${0:${VISUAL}}
+	\end{postulate}
+
+snippet prf "Proof" b
+	\begin{myproof}[$1]
+		${0:${VISUAL}}
+	\end{myproof}
+
+snippet defn "Definition" b
+	\begin{definition}[$1]
+		${0:${VISUAL}}
+	\end{definition}
+
+snippet nte "Note" b
+	\begin{note}[$1]
+		${0:${VISUAL}}
+	\end{note}
+
+snippet prob "Problem" b
+	\begin{problem}[$1]
+		${0:${VISUAL}}
+	\end{problem}
+
+snippet corl "Corollary" b
+	\begin{corollary}[$1]
+		${0:${VISUAL}}
+	\end{corollary}
+
+snippet example "Example" b
+	\begin{example}[$1]
+		${0:${VISUAL}}
+	\end{example}
+
+snippet notion "Notation" b
+	\begin{notation}[$1]
+		$0${VISUAL}
+	\end{notation}
+
+snippet conc "Conclusion" b
+	\begin{conclusion}[$1]
+		$0${VISUAL}
+	\end{conclusion}
+
+snippet figenv "Figure environment" b
+	\begin{figure}[${1:htpb}]
+		\centering
+		${2:\includegraphics[width=0.8\textwidth]{$3}}
+		\caption{${4:$3}}
+		\label{fig:${5:label}}
+	\end{figure}
+
+snippet abs "abstract environment" b
+	\begin{abstract}
+		${0:${VISUAL}}
+	\end{abstract}
+
+# Simplified Table Environment (Removed regex transform)
+snippet tabenv "tabular / array environment" b
+	\begin{tabular}{${1:c}}
+		${0}
+	\end{tabular}
+
+# Simplified Table (Removed regex transform)
+snippet table "Table environment" b
+	\begin{table}[${1:htpb}]
+		\centering
+		\caption{${2:caption}}
+		\label{tab:${3:label}}
+		\begin{tabular}{${5:c}}
+			${0}
+		\end{tabular}
+	\end{table}
+
+
+########
+# MATH #
+########
+
+snippet cc "subset"
+	\subset
+
+snippet inn "in"
+	\in
+
+snippet Nn "cap"
+	\cap
+
+snippet UU "cup"
+	\cup
+
+snippet uuu "bigcup"
+	\bigcup_{${1:i \in ${2: I}}} $0
+
+snippet nnn "bigcap"
+	\bigcap_{${1:i \in ${2: I}}} $0
+
+snippet HH "H"
+	\mathbb{H}
+
+snippet DD "D"
+	\mathbb{D}
+
+snippet inmath "Inline Math"
+	\(${1}\) $0
+
+snippet dm "Display Math"
+	\[
+		${1:${VISUAL}}
+	\]$0
+
+snippet fracm "Fraction"
+	\frac{$1}{$2}$0
+
+snippet compl "Complement"
+	^{c}
+
+snippet ss "Super Script"
+	^{$1}$0
+
+snippet __ "subscript"
+	_{$1}$0
+
+snippet srt "Square Root"
+	\sqrt{${1:${VISUAL}}}$0
+
+snippet srto "... Root"
+	\sqrt[$1]{${2:${VISUAL}}}$0
+
+snippet ceil "Ceil"
+	\left\lceil $1 \right\rceil $0
+
+snippet floor "Floor"
+	\left\lfloor $1 \right\rfloor$0
+
+snippet pmat "Pmat"
+	\begin{pmatrix} $1 \end{pmatrix} $0
+
+snippet bmat "Bmat"
+	\begin{bmatrix} $1 \end{bmatrix} $0
+
+snippet lrb "left\{ right\}"
+	\left\{ ${1:${VISUAL}} \right\} $0
+
+snippet lraangle "leftangle rightangle"
+	\left<${1:${VISUAL}} \right>$0
+
+snippet conj "conjugate"
+	\overline{$1}$0
+
+snippet sum2 "sum"
+	\sum_{n=${1:1}}^{${2:\infty}} ${3:a_n z^n}
+
+snippet taylor "taylor"
+	\sum_{${1:k}=${2:0}}^{${3:\infty}} ${4:c_$1} (x-a)^$1 $0
+
+snippet lim2 "limit"
+	\lim_{${1:n} \to ${2:\infty}}
+
+snippet limsup "limsup"
+	\limsup_{${1:n} \to ${2:\infty}}
+
+snippet prod "product"
+	\prod_{${1:n=${2:1}}}^{${3:\infty}} ${4:${VISUAL}} $0
+
+snippet partd "d/dx"
+	\frac{\partial ${1:V}}{\partial ${2:x}} $0
+
+snippet ooo "infty"
+	\infty
+
+snippet rij "mrij"
+	(${1:x}_${2:n})_{${3:$2}\in${4:\N}}$0
+
+snippet impl "Implies"
+	\implies
+
+snippet impliedby "Implied by"
+	\impliedby
+
+snippet iff "iff"
+	\iff
+
+snippet eqq "Equals"
+	&= $1 \\\\
+
+snippet neq "Not Equal"
+	\neq
+
+snippet leq "leq"
+	\le
+
+snippet geq "geq"
+	\ge
+
+snippet nn "Tikz node"
+	\node[$5] (${1}${2}) ${3:at (${4:0,0}) }{$${1}$};
+	$0
+
+snippet lll "ell"
+	\ell
+
+snippet xx "cross"
+	\times
+
+snippet triangle "normal"
+	\triangleleft
+
+snippet mapsto "mapsto"
+	\mapsto
+
+
+##########
+# TABLES #
+##########
+
+snippet gentbl "Generate table rows"
+	\begin{tabular}{${1:c}}
+	${2}
+	\end{tabular}
+
+snippet tr "Add table row"
+	${1} \\\\
+
+snippet bar "bar"
+	\bar{${1:${VISUAL}}}$0
+
+snippet bra "bra"
+	\bra{${1}}
+
+snippet ket "ket"
+	\ket{${1}}
+
+snippet braket "braket"
+	\braket{${1}}{${2}}
+
+snippet pac "usepackage" b
+	\usepackage[${1:options}]{${2:package}}$0
+
+snippet docls "Document Class"
+	\documentclass{$1}$0
+
+snippet acl "Acronym expanded"
+	\acl{${1:acronym}}
+
+snippet ac "Acronym normal"
+	\ac{${1:acronym}}
+
+snippet eqnn "Equation without a number"
+	\begin{equation*}
+		${0:${VISUAL}}
+	\end{equation*}
+
+snippet al "Align"
+	\begin{align}
+		${0:${VISUAL}}
+	\end{align}
+
+snippet alnn "Align without a number"
+	\begin{align*}
+		${0:${VISUAL}}
+	\end{align*}
+
+snippet eqa "Equation array"
+	\begin{eqnarray}
+		${1:${VISUAL}} & ${2:${VISUAL}} & ${0:${VISUAL}}
+	\end{eqnarray}
+
+snippet eqann "Equation array without a number"
+	\begin{eqnarray*}
+		${1:${VISUAL}} & ${2:${VISUAL}} & ${0:${VISUAL}}
+	\end{eqnarray*}
+
+snippet dv "Derivative"
+	\dv[${1:${VISUAL}}]{${2}}{${3}}
+
+snippet pdv "Partial Derivative"
+	\pdv[${1:${VISUAL}}]{${2}}{${3}}
+
+snippet SI "SI-Unit"
+	\SI{${1:${VISUAL}}}{${2}}

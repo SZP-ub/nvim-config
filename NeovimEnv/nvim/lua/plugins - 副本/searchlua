@@ -1,0 +1,210 @@
+---@diagnostic disable: undefined-global
+return {
+
+	-- {
+	-- 	"andymass/vim-matchup",
+	-- 	keys = { "%" }, -- 仅在按下 % 键时加载插件
+	-- 	-- event = "VeryLazy",
+	-- 	init = function()
+	-- 		vim.g.matchup_enabled = 1
+	-- 		vim.g.matchup_matchparen_enabled = 1
+	-- 		vim.g.matchup_matchparen_hi_surround_always = 0
+	-- 		vim.g.matchup_matchparen_deferred = 1
+	-- 		vim.g.matchup_matchparen_deferred_show_delay = 50
+	-- 		vim.g.matchup_matchparen_deferred_hide_delay = 300
+	-- 		vim.g.matchup_delim_noskips = 1
+	-- 	end,
+	-- },
+
+	{
+		"romainl/vim-cool",
+		keys = {
+			{ "n", mode = "n", desc = "清除高亮" }, -- 按下 n 触发高亮清除（vim-cool 自动处理，无需手动绑定）
+			{ "N", mode = "n", desc = "清除高亮" },
+			{ "*", mode = "n", desc = "清除高亮" },
+			{ "#", mode = "n", desc = "清除高亮" },
+			{ "?", mode = "n", desc = "清除高亮" },
+			{ "/", mode = "n", desc = "清除高亮" },
+		},
+	},
+
+	{
+		-- "ggandor/leap.nvim",
+		url = "https://codeberg.org/andyg/leap.nvim",
+		keys = {
+			{ "s", mode = { "n", "x", "o" }, desc = "Leap 跳转" },
+			{ "S", mode = { "n", "x", "o" }, desc = "Leap 后向跳转" },
+			{ "gS", mode = "n", desc = "Leap 跨窗口后向跳转" },
+		},
+		config = function()
+			-- 默认跳转
+			vim.keymap.set({ "n", "x", "o" }, "s", "<Plug>(leap)")
+			-- 后向跳转
+			vim.keymap.set({ "n", "x", "o" }, "S", "<Plug>(leap-backward)")
+			-- 跨窗口跳转
+			vim.keymap.set("n", "gS", "<Plug>(leap-from-window)")
+			-- 设置特殊按键
+			require("leap").opts.special_keys.next_target = "<tab>"
+		end,
+	},
+
+	-- fzf 二进制
+	{
+		"junegunn/fzf",
+		lazy = true,
+		build = "./install --bin",
+	},
+
+	{
+		"junegunn/fzf.vim",
+		dependencies = { "junegunn/fzf" },
+		keys = {
+			{ "<space>ff", ":Files<CR>", desc = "fzf: 查找文件" },
+			{ "<space>fg", ":Rg<CR>", desc = "fzf: 全文搜索" },
+			{ "<space>fh", ":Rg \\.h$<CR>", desc = "fzf: 查找头文件" },
+			{ "<space>fb", ":Buffers<CR>", desc = "fzf: buffer 列表" },
+			{ "<space>fr", ":History<CR>", desc = "fzf: 最近文件" },
+			{
+				"<space>fi",
+				function()
+					local fname = vim.fn.expand("%:t")
+					vim.cmd('Rg #include "' .. fname .. '"')
+				end,
+				desc = "fzf: 查找包含当前文件的文件",
+			},
+			{ "<space>ft", ":Tags<CR>", desc = "fzf: 查找 tags" },
+			{
+				"grr",
+				function()
+					local word = vim.fn.expand("<cword>")
+					vim.fn["fzf#vim#grep"](
+						"rg --column --line-number --no-heading --color=always --smart-case "
+							.. vim.fn.shellescape(word),
+						1,
+						vim.fn["fzf#vim#with_preview"]({ options = { "--query", word } }),
+						0
+					)
+				end,
+				desc = "fzf: 查找调用关系",
+			},
+		},
+	},
+
+	{
+		"ibhagwan/fzf-lua",
+		lazy = true,
+		dependencies = { "junegunn/fzf" },
+		config = function()
+			require("fzf-lua").setup({
+				winopts = {
+					height = 0.75,
+					width = 0.70,
+					row = 0.35,
+					col = 0.50,
+					border = "solid",
+					backdrop = 60,
+					fullscreen = false,
+					win_hl = {
+						border = "FzfLuaBorder",
+						preview = "NormalFloat",
+					},
+
+					preview = {
+						layout = "horizontal", -- 左右分屏
+						horizontal = "right:55%", -- 右侧55%为预览区
+						wrap = true, -- 自动换行
+						title = true, -- 关闭预览标题栏
+						title_pos = "center",
+						scrolloff = 0,
+						delay = 20,
+						scrollbar = "border", -- 滚动条在边界
+						vertical = "down:45%",
+						flip_columns = 100,
+						winopts = {
+							number = true, -- 行号（可选，fzf.vim 默认预览也是带行号）
+							relativenumber = false,
+							cursorline = true,
+							cursorlineopt = "both",
+							cursorcolumn = false,
+							signcolumn = "no",
+							list = false,
+							foldenable = false,
+							foldmethod = "manual",
+							win_hl = {
+								border = "FzfLuaBorder",
+								preview = "NormalFloat",
+							},
+						},
+					},
+				},
+				defaults = {
+					multi_select = false,
+					separator = "─",
+				},
+				grep = {
+					actions = {
+						["default"] = require("fzf-lua.actions").file_edit,
+					},
+				},
+				treesitter = {
+					enabled = true,
+					fzf_colors = { ["hl"] = "-1:reverse", ["hl+"] = "-1:reverse" },
+				},
+			})
+		end,
+	},
+
+	{
+		"dhananjaylatkar/cscope_maps.nvim",
+		dependencies = { "ibhagwan/fzf-lua" },
+		opts = {
+			-- cscope = { db_file = "./cscope.out", picker = "quickfix", skip_picker_for_single_result = false },
+			cscope = { db_file = "./cscope.out", picker = "fzf-lua", skip_picker_for_single_result = false },
+			stack_view = { tree_hl = true },
+		},
+		keys = {
+			{
+				"csb",
+				function()
+					vim.cmd("!cscope -Rbqkv")
+				end,
+				mode = "n",
+				desc = "构建/更新 cscope 数据库（项目根目录）",
+			},
+			{
+				"csn",
+				function()
+					local word = vim.fn.expand("<cword>")
+					if word ~= nil and word ~= "" then
+						vim.cmd("CsStackView open down " .. word)
+					else
+						vim.notify("请将光标停在有效符号上再使用调用关系树", vim.log.levels.WARN)
+					end
+				end,
+				mode = "n",
+				desc = "显示调用关系树（down）",
+			},
+			{
+				"csu",
+				function()
+					local word = vim.fn.expand("<cword>")
+					if word ~= nil and word ~= "" then
+						vim.cmd("CsStackView open up " .. word)
+					else
+						vim.notify("请将光标停在有效符号上再使用调用关系树", vim.log.levels.WARN)
+					end
+				end,
+				mode = "n",
+				desc = "显示被调用关系树（up）",
+			},
+			{ "<space>csg", ":Cs f g <C-R><C-W><CR>", mode = "n", desc = "查找全局定义" },
+			{ "csc", ":Cs f c <C-R><C-W><CR>", mode = "n", desc = "查找调用该函数的位置" },
+			{ "cso", ":Cs f d <C-R><C-W><CR>", mode = "n", desc = "我调用的函数" },
+			{ "cst", ":Cs f t <C-R><C-W><CR>", mode = "n", desc = "查找被该函数调用的位置" },
+			{ "csa", ":Cs f a <C-R><C-W><CR>", mode = "n", desc = "查找赋值位置" },
+		},
+		config = function(_, opts)
+			require("cscope_maps").setup(opts)
+		end,
+	},
+}

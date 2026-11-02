@@ -1,0 +1,117 @@
+---@diagnostic disable: undefined-global
+return {
+
+	{
+		"OXY2DEV/markview.nvim",
+		-- ft = { "markdown" },
+		lazy = false,
+		priority = 100,
+		config = function()
+			local markview = require("markview")
+
+			markview.setup({
+				preview = {
+					auto_start = true,
+					icon_provider = "devicons", -- "mini" or "devicons"
+				},
+
+				bullets = {
+					enabled = true,
+					icons = { "●", "○", "◆", "◇" },
+					ordered = function(ctx)
+						local value = vim.trim(ctx.value)
+						local index = tonumber(value:sub(1, #value - 1))
+						return ("%d."):format(index > 1 and index or ctx.index)
+					end,
+				},
+
+				checkboxes = {
+					enabled = true,
+					unchecked = {
+						icon = "󰄱 ",
+					},
+					checked = {
+						icon = "󰱒 ",
+					},
+					custom = {
+						todo = {
+							raw = "[-]",
+							rendered = "󰥔 ",
+						},
+					},
+				},
+
+				quote = {
+					enabled = true,
+					icon = "▋",
+				},
+
+				links = {
+					enabled = true,
+				},
+
+				callouts = {
+					enabled = true,
+					styles = {
+						note = { icon = "󰋽 " },
+						tip = { icon = "󰌶 " },
+						important = { icon = "󰅾 " },
+						warning = { icon = "󰀪 " },
+						caution = { icon = "󰳦 " },
+						info = { icon = "󰋽 " },
+						success = { icon = "󰄬 " },
+						danger = { icon = "󱐌 " },
+						error = { icon = "󱐌 " },
+						bug = { icon = "󰨰 " },
+						quote = { icon = "󱆨 " },
+						example = { icon = "󰉹 " },
+					},
+				},
+
+				anti_conceal = {
+					enabled = true,
+					ignore = {
+						code_background = true,
+						sign = true,
+					},
+				},
+			})
+		end,
+	},
+
+	{
+		"keaising/im-select.nvim",
+		-- 注意：不要只在 InsertEnter 时加载，插件需要监听全局切模式事件
+		event = "VeryLazy",
+		config = function()
+			require("im_select").setup({
+				-- Normal 模式下强制切回英文美式键盘
+				default_im_select = "1033",
+
+				-- 指定执行命令名称
+				default_command = "im-select.exe",
+
+				-- 在这些事件触发时自动切回英文 1033
+				set_default_events = { "VimEnter", "FocusGained", "InsertLeave", "CmdlineLeave" },
+
+				-- 重新按 i 进入插入模式时，自动恢复切到中文 2052
+				set_previous_events = { "InsertEnter" },
+			})
+		end,
+	},
+
+	-- {
+	-- 	"keaising/im-select.nvim",
+	-- 	event = "InsertEnter",
+	-- 	config = function()
+	-- 		require("im_select").setup({
+	-- 			default_im_select = "keyboard-cn",
+	-- 			set_im_select_commands = {
+	-- 				Linux = "fcitx5-remote -s %s",
+	-- 			},
+	-- 			get_im_select_command = "fcitx5-remote -n | tr -d '\n'",
+	-- 			get_im_select_timeout = 300,
+	-- 		})
+	-- 	end,
+	-- },
+}

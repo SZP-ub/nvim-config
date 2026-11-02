@@ -1,0 +1,768 @@
+-- snacks_plugin.lua
+-- Plugin spec for folke/snacks.nvim with termdebug integration and debug helpers.
+-- Save this file into your plugin spec (e.g. lazy.nvim plugins list) or use as-is.
+-- This returns the table expected by plugin managers like lazy.nvim / packer.nvim.
+
+return {
+	"folke/snacks.nvim",
+	priority = 1000,
+	lazy = false,
+	-- event = "VeryLazy",
+	opts = {
+		-- 全局配置选项（保留你原来的设置）
+		bigfile = { enabled = true },
+		math = { latex = { font_size = "small" } },
+		indent = {
+			enabled = true,
+			animate = { enabled = true },
+			indent = { only_scope = true },
+			scope = { enabled = true, underline = true },
+			chunk = { enabled = true },
+		},
+		picker = {
+			enabled = true,
+			previewers = {},
+			sources = {
+				spelling = { layout = { preset = "select" } },
+			},
+			layout = { preset = "fzf.vim" },
+		},
+		quickfile = { enabled = true },
+		scroll = { enabled = false },
+		scope = { enabled = true, cursor = true },
+		words = { enabled = true },
+	},
+
+	-- 配置回调：先调用 snacks.setup(opts)，然后注入 termdebug 集成、全局调试快捷函数与命令/映射
+	config = function(_, opts)
+		local ok, Snacks = pcall(require, "snacks")
+		if not ok or not Snacks then
+			vim.notify("snacks.nvim not found", vim.log.levels.WARN)
+			return
+		end
+
+		-- 调用 snacks 的 setup（如果需要）
+		if type(Snacks.setup) == "function" then
+			pcall(Snacks.setup, opts)
+		end
+
+		-- Helper: safe notify / log using Snacks.debug when available
+		local function safe_inspect(...)
+			if Snacks and Snacks.debug and type(Snacks.debug.inspect) == "function" then
+				pcall(Snacks.debug.inspect, ...)
+			else
+				local items = {}
+				for i = 1, select("#", ...) do
+					table.insert(items, vim.inspect(select(i, ...)))
+				end
+				vim.notify(table.concat(items, "\n\n"), vim.log.levels.INFO, { title = "dd" })
+			end
+		end
+
+		local function safe_backtrace(msg)
+			if Snacks and Snacks.debug and type(Snacks.debug.backtrace) == "function" then
+				pcall(Snacks.debug.backtrace, msg)
+			else
+				msg = msg or "backtrace"
+				vim.notify(debug.traceback(msg, 2), vim.log.levels.INFO, { title = "backtrace" })
+			end
+		end
+
+		local function safe_log(...)
+			if Snacks and Snacks.debug and type(Snacks.debug.log) == "function" then
+				pcall(Snacks.debug.log, ...)
+			else
+				local parts = {}
+				for i = 1, select("#", ...) do
+					local v = select(i, ...)
+					parts[#parts + 1] = (type(v) == "string") and v or vim.inspect(v)
+				end
+				local line = string.format("[%s] %s\n", os.date("%Y-%m-%d %H:%M:%S"), table.concat(parts, " "))
+				local fname = vim.fn.getcwd() .. "/debug.log"
+				local fd = io.open(fname, "a")
+				if fd then
+					fd:write(line)
+					fd:close()
+				else
+					vim.notify("Failed to write debug.log to " .. fname, vim.log.levels.WARN)
+				end
+			end
+		end
+
+		-- 全局快捷函数（方便在配置或命令行中快速调试）
+		_G.dd = function(...)
+			safe_inspect(...)
+		end
+		_G.bt = function()
+			safe_backtrace()
+		end
+		-- 可选：将 vim.print 指向 dd（如果你想覆盖）
+		-- pcall(function() vim.print = _G.dd end)
+
+		-- Termdebug integration -------------------------------------------------
+		local function ensure_termdebug()
+			-- termdebug 是 Neovim 自带的 runtime plugin，某些发行版可能需要 packadd
+			pcall(vim.cmd, "packadd termdebug")
+		end
+
+		-- 启动 termdebug（使用 gdb --args）
+		local function start_termdebug(start_opts)
+			start_opts = start_opts or {}
+
+			ensure_termdebug()
+
+			local default_prog = start_opts.program or vim.fn.expand("%:p")
+			if default_prog == "" then
+				default_prog = nil
+			end
+			local program = start_opts.program or vim.fn.input("Program to debug: ", default_prog or "", "file")
+			if program == nil or program == "" then
+				vim.notify("No program specified, aborting termdebug start", vim.log.levels.WARN)
+				return
+			end
+
+			local args = start_opts.args
+			if args == nil then
+				args = vim.fn.input("Program args (leave empty if none): ", "")
+			end
+
+			if start_opts.cwd then
+				pcall(vim.cmd, "lcd " .. vim.fn.fnameescape(start_opts.cwd))
+			end
+
+			local cmdline = "Termdebug gdb --args " .. vim.fn.shellescape(program)
+			if args and args ~= "" then
+				cmdline = cmdline .. " " .. args
+			end
+
+			-- 记录日志（如果 snacks 提供 log 则使用）
+			safe_log("termdebug:start", { program = program, args = args, cwd = start_opts.cwd })
+
+			-- notify（优先使用 Snacks.debug.notify 如果存在）
+			local notify_fn = vim.notify
+			if Snacks and Snacks.debug and type(Snacks.debug.notify) == "function" then
+				notify_fn = Snacks.debug.notify
+			end
+			notify_fn("Starting termdebug: " .. program .. (args ~= "" and (" " .. args) or ""), vim.log.levels.INFO)
+
+			local ok, err = pcall(vim.cmd, cmdline)
+			if not ok then
+				vim.notify("Failed to start Termdebug: " .. tostring(err), vim.log.levels.ERROR)
+				return
+			end
+
+			vim.defer_fn(function()
+				notify_fn("Termdebug started for: " .. program, vim.log.levels.INFO)
+			end, 50)
+		end
+
+		-- Create user command :SnacksTermdebug
+		if vim.api.nvim_create_user_command then
+			pcall(vim.api.nvim_create_user_command, "SnacksTermdebug", function(cargs)
+				if cargs.args and cargs.args ~= "" then
+					local s = vim.split(cargs.args, "%s+")
+					local program = s[1]
+					local rest = ""
+					if #s > 1 then
+						rest = table.concat(vim.list_slice(s, 2, #s), " ")
+					end
+					start_termdebug({ program = program, args = rest })
+				else
+					start_termdebug()
+				end
+			end, { nargs = "*", complete = "file" })
+		end
+
+		-- 默认快捷键（可按需修改或注释）
+		local map_opts = { noremap = true, silent = true }
+		pcall(function()
+			-- <leader>dt : 启动 termdebug（交互式）
+			vim.keymap.set("n", "<leader>dt", function()
+				start_termdebug()
+			end, map_opts)
+			-- <leader>db : 打印 backtrace
+			vim.keymap.set("n", "<leader>db", function()
+				_G.bt()
+			end, map_opts)
+			-- <leader>dd : pretty print（当前单词或选中内容）
+			vim.keymap.set("n", "<leader>dd", function()
+				_G.dd(vim.fn.expand("<cWORD>"))
+			end, map_opts)
+			vim.keymap.set("v", "<leader>dd", function()
+				vim.cmd('noautocmd normal! "vy"')
+				local s = vim.fn.getreg("v")
+				_G.dd(s)
+			end, map_opts)
+		end)
+
+		-- END config
+	end,
+}
+
+-- return {
+-- 	"folke/snacks.nvim",
+-- 	priority = 1000,
+-- 	-- lazy = false,
+-- 	-- event = "VeryLazy",
+-- 	opts = {
+-- 		-- 全局配置选项
+-- 		bigfile = { enabled = true }, -- 大文件支持：启用大文件相关优化
+-- 		-- dashboard = { enabled = true }, -- 启用仪表盘集成
+-- 		-- explorer = { enabled = false }, -- 文件资源管理器集成（禁用）
+-- 		-- image = {
+-- 		-- 	enabled = true, -- 启用图片预览支持
+-- 		-- 	doc = { inline = false, float = false, max_width = 80, max_height = 40 }, -- 文档中图片显示配置：不内联、不浮动，最大宽高
+-- 		math = { latex = { font_size = "small" } }, -- 数学公式（LaTeX）渲染字体大小
+-- 		-- },
+-- 		indent = {
+-- 			enabled = true, -- 启用缩进/作用域可视化功能
+-- 			animate = {
+-- 				enabled = true, -- 是否启用缩进动画（禁用）
+-- 			},
+-- 			indent = {
+-- 				only_scope = true, -- 仅为作用域显示缩进（不为每一行都显示）
+-- 			},
+-- 			scope = {
+-- 				enabled = true, -- 启用当前作用域高亮
+-- 				underline = true, -- 在作用域起始处显示下划线
+-- 			},
+-- 			chunk = {
+-- 				-- chunk 模式：当启用时，作用域会以“块”的形式渲染（顶层作用域除外）
+-- 				enabled = true,
+-- 			},
+-- 		},
+-- 		-- input = { enabled = true }, -- 启用输入相关功能（例如浮动输入框）
+-- 		-- lazygit = {
+-- 		-- 	enabled = true, -- 启用 lazygit 集成
+-- 		-- 	configure = false, -- 是否在内部自动配置 lazygit（这里为 false）
+-- 		-- },
+-- 		-- notifier = {
+-- 		-- 	enabled = true, -- 启用通知（Notifier）功能
+-- 		-- 	style = "notification", -- 通知样式（这里使用系统风格的 notification）
+-- 		-- },
+-- 		picker = {
+-- 			enabled = true, -- 启用内置的 picker（选择器）集合
+-- 			previewers = {
+-- 				-- diff = {
+-- 				-- 	builtin = false, -- diff 预览是否使用内置 Neovim（true 使用 Neovim，false 使用外部工具）
+-- 				-- 	cmd = { "delta" }, -- 使用外部工具 delta 来显示 diff（示例）
+-- 				-- },
+-- 				-- git = {
+-- 				-- 	builtin = false, -- git 输出预览是否使用内置 Neovim（false 表示使用 git 本身）
+-- 				-- 	args = {}, -- 传递给 git 的额外参数（例如用于 pager 的 -c 配置）
+-- 				-- },
+-- 			},
+-- 			sources = {
+-- 				spelling = {
+-- 					layout = { preset = "select" }, -- 拼写 source 的布局预设
+-- 				},
+-- 			},
+-- 			-- win = {
+-- 			-- 	input = {
+-- 			-- 		keys = {
+-- 			-- 			-- picker 输入窗口的按键映射（键 => 动作）
+-- 			-- 			["<Tab>"] = { "select_and_prev", mode = { "i", "n" } }, -- Tab: 选择并移动到上一个
+-- 			-- 			["<S-Tab>"] = { "select_and_next", mode = { "i", "n" } }, -- Shift-Tab: 选择并移动到下一个
+-- 			-- 			["<A-Up>"] = { "history_back", mode = { "n", "i" } }, -- Alt-Up: 历史后退
+-- 			-- 			["<A-Down>"] = { "history_forward", mode = { "n", "i" } }, -- Alt-Down: 历史前进
+-- 			-- 			["<A-j>"] = { "list_down", mode = { "n", "i" } }, -- Alt-j: 列表下移
+-- 			-- 			["<A-k>"] = { "list_up", mode = { "n", "i" } }, -- Alt-k: 列表上移
+-- 			-- 			["<C-u>"] = { "preview_scroll_up", mode = { "n", "i" } }, -- Ctrl-u: 预览区上滚
+-- 			-- 			["<C-d>"] = { "preview_scroll_down", mode = { "n", "i" } }, -- Ctrl-d: 预览区下滚
+-- 			-- 			["<A-u>"] = { "list_scroll_up", mode = { "n", "i" } }, -- Alt-u: 列表上滚
+-- 			-- 			["<A-d>"] = { "list_scroll_down", mode = { "n", "i" } }, -- Alt-d: 列表下滚
+-- 			-- 			["<c-j>"] = {}, -- 保留/占位（未绑定动作）
+-- 			-- 			["<c-k>"] = {}, -- 保留/占位（未绑定动作）
+-- 			-- 		},
+-- 			-- 	},
+-- 			-- },
+-- 			layout = {
+-- 				-- preset = "telescope", -- picker 的默认布局预设（使用 telescope 风格）
+-- 				preset = "fzf.vim", -- picker 的默认布局预设（使用 telescope 风格）
+-- 			},
+-- 		},
+-- 		quickfile = { enabled = true }, -- 启用 quickfile（快速文件）功能
+-- 		scroll = { enabled = false }, -- 启用滚动增强（这里禁用）
+-- 		-- scope 相关：创建文本对象 ii / ai 以及跳转 [i / ]i
+-- 		scope = {
+-- 			enabled = true, -- 启用作用域文本对象
+-- 			cursor = true, -- 是否基于光标位置启用（这里为 false）
+-- 		},
+--
+-- 		-- statuscolumn = {
+-- 		-- 	enabled = true, -- 启用 statuscolumn（状态列）集成
+-- 		-- 	left = { "mark", "sign" }, -- 左侧显示项优先级：先 mark 再 sign
+-- 		-- 	right = { "fold", "git" }, -- 右侧显示项优先级：先 fold 再 git
+-- 		-- 	folds = {
+-- 		-- 		open = true, -- 显示展开的折叠图标
+-- 		-- 		git_hl = false, -- 折叠图标是否使用 Git Signs 的高亮
+-- 		-- 	},
+-- 		-- 	refresh = 50, -- 最多每 50ms 刷新一次
+-- 		-- },
+--
+-- 		-- terminal = {
+-- 		-- 	enabled = true, -- 启用内置终端相关功能
+-- 		-- },
+-- 		words = { enabled = true }, -- 启用词语/引用导航相关功能
+-- 		-- styles = {
+-- 		-- 	terminal = {
+-- 		-- 		relative = "editor", -- 终端浮动窗口相对定位方式（相对于 editor）
+-- 		-- 		border = "rounded", -- 边框样式：圆角
+-- 		-- 		position = "float", -- 位置类型：浮动窗口
+-- 		-- 		backdrop = 60, -- 背景遮罩透明度
+-- 		-- 		height = 0.9, -- 浮动终端高度占比
+-- 		-- 		width = 0.9, -- 浮动终端宽度占比
+-- 		-- 		zindex = 50, -- zindex 层级
+-- 		-- 	},
+-- 		-- },
+-- 	},
+--
+-- 	-- keys = {
+-- 	-- 	{
+-- 	-- 		"<A-w>",
+-- 	-- 		function()
+-- 	-- 			require("snacks").bufdelete()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Delete buffer",
+-- 	-- 	}, -- Alt-w: 删除 buffer
+-- 	-- 	{
+-- 	-- 		"<leader>si",
+-- 	-- 		function()
+-- 	-- 			require("snacks").image.hover()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Display image",
+-- 	-- 	}, -- leader si: 显示图片（hover）
+-- 	-- 	{
+-- 	-- 		"<A-i>",
+-- 	-- 		function()
+-- 	-- 			require("snacks").terminal()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Toggle terminal",
+-- 	-- 		mode = { "n", "t" },
+-- 	-- 	}, -- Alt-i: 切换 snacks 终端（普通/终端模式均可）
+-- 	-- 	-- Notification
+-- 	-- 	{
+-- 	-- 		"<leader>sn",
+-- 	-- 		function()
+-- 	-- 			require("snacks").picker.notifications()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Notification history",
+-- 	-- 	}, -- leader sn: 打开通知历史（picker）
+-- 	-- 	{
+-- 	-- 		"<leader>n",
+-- 	-- 		function()
+-- 	-- 			require("snacks").notifier.show_history()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Notification history",
+-- 	-- 	}, -- leader n: 显示通知历史（notifier）
+-- 	-- 	{
+-- 	-- 		"<leader>un",
+-- 	-- 		function()
+-- 	-- 			require("snacks").notifier.hide()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Dismiss all notifications",
+-- 	-- 	}, -- leader un: 隐藏/清除所有通知
+-- 	-- 	-- Top Pickers & Explorer
+-- 	-- 	{
+-- 	-- 		"<leader><space>",
+-- 	-- 		function()
+-- 	-- 			require("snacks").picker.smart()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Smart find files",
+-- 	-- 	}, -- leader <space>: 智能查找文件
+-- 	-- 	{
+-- 	-- 		"<leader>,",
+-- 	-- 		function()
+-- 	-- 			require("snacks").picker.buffers()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Buffers",
+-- 	-- 	}, -- leader ,: 打开 buffers 列表
+-- 	-- 	{
+-- 	-- 		"<leader>sn",
+-- 	-- 		function()
+-- 	-- 			require("snacks").picker.notifications()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Notification history",
+-- 	-- 	}, -- 重复绑定：leader sn（同上）
+-- 	-- 	-- find
+-- 	-- 	{
+-- 	-- 		"<leader>sb",
+-- 	-- 		function()
+-- 	-- 			require("snacks").picker.buffers()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Buffers",
+-- 	-- 	}, -- leader sb: Buffers（与 leader , 类似）
+-- 	-- 	{
+-- 	-- 		"<leader>sf",
+-- 	-- 		function()
+-- 	-- 			require("snacks").picker.files()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Find files",
+-- 	-- 	}, -- leader sf: 查找文件
+-- 	-- 	{
+-- 	-- 		"<leader>sp",
+-- 	-- 		function()
+-- 	-- 			require("snacks").picker.projects()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Projects",
+-- 	-- 	}, -- leader sp: 项目列表
+-- 	-- 	{
+-- 	-- 		"<leader>sr",
+-- 	-- 		function()
+-- 	-- 			require("snacks").picker.recent()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Recent",
+-- 	-- 	}, -- leader sr: 最近文件
+-- 	-- 	-- git
+-- 	-- 	{
+-- 	-- 		"<C-g>",
+-- 	-- 		function()
+-- 	-- 			require("snacks").lazygit()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Lazygit",
+-- 	-- 	}, -- Ctrl-g: 打开 lazygit
+-- 	-- 	{
+-- 	-- 		"<leader>ggl",
+-- 	-- 		function()
+-- 	-- 			require("snacks").picker.git_log()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Git log",
+-- 	-- 	}, -- leader ggl: Git 日志
+-- 	-- 	{
+-- 	-- 		"<leader>ggd",
+-- 	-- 		function()
+-- 	-- 			require("snacks").picker.git_diff()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Git diff",
+-- 	-- 	}, -- leader ggd: Git diff
+-- 	-- 	{
+-- 	-- 		"<leader>ggb",
+-- 	-- 		function()
+-- 	-- 			require("snacks").git.blame_line()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Git blame line",
+-- 	-- 	}, -- leader ggb: Git blame 当前行
+-- 	-- 	{
+-- 	-- 		"<leader>ggB",
+-- 	-- 		function()
+-- 	-- 			require("snacks").gitbrowse()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Git browse",
+-- 	-- 	}, -- leader ggB: 在浏览器打开当前文件/提交（gitbrowse）
+-- 	-- 	-- Grep
+-- 	-- 	-- { "<leader>sb", function() require("snacks").picker.lines() end, desc = "[Snacks] Buffer lines" }, -- 可选：在 buffer 中查找行（被注释）
+-- 	-- 	-- { "<leader>sB", function() require("snacks").picker.grep_buffers() end, desc = "[Snacks] Grep open buffers" }, -- 可选：在打开的 buffers 中 grep（被注释）
+-- 	-- 	{
+-- 	-- 		"<leader>sg",
+-- 	-- 		function()
+-- 	-- 			require("snacks").picker.grep()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Grep",
+-- 	-- 	}, -- leader sg: 全项目 grep
+-- 	-- 	-- { "<leader>sw", function() require("snacks").picker.grep_word() end, desc = "[Snacks] Visual selection or word", mode = { "n", "x" } }, -- 可选：按词/选择 grep（被注释）
+-- 	-- 	-- search
+-- 	-- 	{
+-- 	-- 		'<leader>s"',
+-- 	-- 		function()
+-- 	-- 			require("snacks").picker.registers()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Registers",
+-- 	-- 	}, -- leader s": 寄存器列表
+-- 	-- 	{
+-- 	-- 		"<leader>s/",
+-- 	-- 		function()
+-- 	-- 			require("snacks").picker.search_history()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Search history",
+-- 	-- 	}, -- leader s/: 搜索历史
+-- 	-- 	{
+-- 	-- 		"<leader>sa",
+-- 	-- 		function()
+-- 	-- 			require("snacks").picker.spelling()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Spelling",
+-- 	-- 	}, -- leader sa: 拼写建议
+-- 	-- 	{
+-- 	-- 		"<leader>sA",
+-- 	-- 		function()
+-- 	-- 			require("snacks").picker.autocmds()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Autocmds",
+-- 	-- 	}, -- leader sA: autocmd 列表
+-- 	-- 	{
+-- 	-- 		"<leader>s:",
+-- 	-- 		function()
+-- 	-- 			require("snacks").picker.command_history()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Command history",
+-- 	-- 	}, -- leader s:: 命令历史
+-- 	-- 	{
+-- 	-- 		"<leader>sc",
+-- 	-- 		function()
+-- 	-- 			require("snacks").picker.commands()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Commands",
+-- 	-- 	}, -- leader sc: 命令列表
+-- 	-- 	{
+-- 	-- 		"<leader>sd",
+-- 	-- 		function()
+-- 	-- 			require("snacks").picker.diagnostics()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Diagnostics",
+-- 	-- 	}, -- leader sd: 全局诊断
+-- 	-- 	{
+-- 	-- 		"<leader>sD",
+-- 	-- 		function()
+-- 	-- 			require("snacks").picker.diagnostics_buffer()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Diagnostics buffer",
+-- 	-- 	}, -- leader sD: 当前 buffer 诊断
+-- 	-- 	{
+-- 	-- 		"<leader>sH",
+-- 	-- 		function()
+-- 	-- 			require("snacks").picker.help()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Help pages",
+-- 	-- 	}, -- leader sH: 帮助文档
+-- 	-- 	{
+-- 	-- 		"<leader>sh",
+-- 	-- 		function()
+-- 	-- 			require("snacks").picker.highlights()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Highlights",
+-- 	-- 	}, -- leader sh: 高亮组
+-- 	-- 	{
+-- 	-- 		"<leader>sI",
+-- 	-- 		function()
+-- 	-- 			require("snacks").picker.icons()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Icons",
+-- 	-- 	}, -- leader sI: 图标列表
+-- 	-- 	{
+-- 	-- 		"<leader>sj",
+-- 	-- 		function()
+-- 	-- 			require("snacks").picker.jumps()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Jumps",
+-- 	-- 	}, -- leader sj: 跳转列表（jumps）
+-- 	-- 	{
+-- 	-- 		"<leader>sk",
+-- 	-- 		function()
+-- 	-- 			require("snacks").picker.keymaps()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Keymaps",
+-- 	-- 	}, -- leader sk: 键位映射列表
+-- 	-- 	{
+-- 	-- 		"<leader>sl",
+-- 	-- 		function()
+-- 	-- 			require("snacks").picker.loclist()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Location list",
+-- 	-- 	}, -- leader sl: location list
+-- 	-- 	{
+-- 	-- 		"<leader>sm",
+-- 	-- 		function()
+-- 	-- 			require("snacks").picker.marks()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Marks",
+-- 	-- 	}, -- leader sm: marks（书签）
+-- 	-- 	{
+-- 	-- 		"<leader>sM",
+-- 	-- 		function()
+-- 	-- 			require("snacks").picker.man()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Man pages",
+-- 	-- 	}, -- leader sM: man 手册页
+-- 	-- 	{
+-- 	-- 		"<leader>sp",
+-- 	-- 		function()
+-- 	-- 			require("snacks").picker.lazy()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Search for plugin spec",
+-- 	-- 	}, -- leader sp: 搜索插件配置（lazy）
+-- 	-- 	{
+-- 	-- 		"<leader>sq",
+-- 	-- 		function()
+-- 	-- 			require("snacks").picker.qflist()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Quickfix list",
+-- 	-- 	}, -- leader sq: quickfix 列表
+-- 	-- 	{
+-- 	-- 		"<leader>sr",
+-- 	-- 		function()
+-- 	-- 			require("snacks").picker.resume()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Resume",
+-- 	-- 	}, -- leader sr: 恢复上次 picker
+-- 	-- 	{
+-- 	-- 		"<leader>su",
+-- 	-- 		function()
+-- 	-- 			require("snacks").picker.undo()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Undo history",
+-- 	-- 	}, -- leader su: 撤销历史
+-- 	-- 	-- LSP
+-- 	-- 	{
+-- 	-- 		"gd",
+-- 	-- 		function()
+-- 	-- 			require("snacks").picker.lsp_definitions()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Goto definition",
+-- 	-- 	}, -- gd: 跳转到定义
+-- 	-- 	{
+-- 	-- 		"gD",
+-- 	-- 		function()
+-- 	-- 			require("snacks").picker.lsp_declarations()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Goto declaration",
+-- 	-- 	}, -- gD: 跳转到声明
+-- 	-- 	{
+-- 	-- 		"gr",
+-- 	-- 		function()
+-- 	-- 			require("snacks").picker.lsp_references()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] References",
+-- 	-- 	}, -- gr: 查找引用
+-- 	-- 	{
+-- 	-- 		"gI",
+-- 	-- 		function()
+-- 	-- 			require("snacks").picker.lsp_implementations()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Goto implementation",
+-- 	-- 	}, -- gI: 跳转到实现
+-- 	-- 	{
+-- 	-- 		"gy",
+-- 	-- 		function()
+-- 	-- 			require("snacks").picker.lsp_type_definitions()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Goto t[y]pe definition",
+-- 	-- 	}, -- gy: 类型定义
+-- 	-- 	{
+-- 	-- 		"<leader>ss",
+-- 	-- 		function()
+-- 	-- 			require("snacks").picker.lsp_symbols()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] LSP symbols",
+-- 	-- 	}, -- leader ss: LSP 符号（当前文件）
+-- 	-- 	{
+-- 	-- 		"<leader>sS",
+-- 	-- 		function()
+-- 	-- 			require("snacks").picker.lsp_workspace_symbols()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] LSP workspace symbols",
+-- 	-- 	}, -- leader sS: 工作区符号
+-- 	-- 	-- Words
+-- 	-- 	{
+-- 	-- 		"]]",
+-- 	-- 		function()
+-- 	-- 			require("snacks").words.jump(vim.v.count1)
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Next Reference",
+-- 	-- 		mode = { "n", "t" },
+-- 	-- 	}, -- ]]: 跳到下一个引用（支持计数）
+-- 	-- 	{
+-- 	-- 		"[[",
+-- 	-- 		function()
+-- 	-- 			require("snacks").words.jump(-vim.v.count1)
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Prev Reference",
+-- 	-- 		mode = { "n", "t" },
+-- 	-- 	}, -- [[: 跳到上一个引用（支持计数）
+-- 	-- 	-- Zen mode
+-- 	-- 	{
+-- 	-- 		"<leader>z",
+-- 	-- 		function()
+-- 	-- 			require("snacks").zen()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Toggle Zen Mode",
+-- 	-- 	}, -- leader z: 切换 Zen 模式
+-- 	-- 	{
+-- 	-- 		"<leader>Z",
+-- 	-- 		function()
+-- 	-- 			require("snacks").zen.zoom()
+-- 	-- 		end,
+-- 	-- 		desc = "[Snacks] Toggle Zoom",
+-- 	-- 	}, -- leader Z: Zen 模式缩放切换
+-- 	-- },
+--
+-- 	-- init = function()
+-- 	-- 	local Snacks = require("snacks")
+-- 	-- 	-- 在 User VeryLazy 事件触发时执行（常用于延迟加载后的初始化）
+-- 	-- 	vim.api.nvim_create_autocmd("User", {
+-- 	-- 		pattern = "VeryLazy",
+-- 	-- 		callback = function()
+-- 	-- 			-- Setup some globals for debugging (lazy-loaded)
+-- 	-- 			-- 全局调试函数，方便在配置或命令行中快速调试
+-- 	-- 			_G.dd = function(...)
+-- 	-- 				Snacks.debug.inspect(...)
+-- 	-- 			end
+-- 	-- 			_G.bt = function()
+-- 	-- 				Snacks.debug.backtrace()
+-- 	-- 			end
+-- 	-- 			vim.print = _G.dd -- 重写 vim.print，使用 snacks 的 inspect（便于查看复杂表）
+-- 	--
+-- 	-- 			-- 创建可切换配置项（toggle），并映射快捷键
+-- 	-- 			Snacks.toggle
+-- 	-- 				.new({
+-- 	-- 					id = "Animation", -- 标识符
+-- 	-- 					name = "Animation", -- 显示名称
+-- 	-- 					get = function()
+-- 	-- 						return Snacks.animate.enabled() -- 获取当前状态
+-- 	-- 					end,
+-- 	-- 					set = function(state)
+-- 	-- 						vim.g.snacks_animate = state -- 设置全局变量以开启/关闭动画
+-- 	-- 					end,
+-- 	-- 				})
+-- 	-- 				:map("<leader>ta") -- 映射到 <leader>ta
+-- 	--
+-- 	-- 			Snacks.toggle
+-- 	-- 				.new({
+-- 	-- 					id = "scroll_anima",
+-- 	-- 					name = "Scroll animation",
+-- 	-- 					get = function()
+-- 	-- 						return Snacks.scroll.enabled -- 获取当前滚动动画状态
+-- 	-- 					end,
+-- 	-- 					set = function(state)
+-- 	-- 						if state then
+-- 	-- 							Snacks.scroll.enable() -- 启用滚动动画
+-- 	-- 						else
+-- 	-- 							Snacks.scroll.disable() -- 禁用滚动动画
+-- 	-- 						end
+-- 	-- 					end,
+-- 	-- 				})
+-- 	-- 				:map("<leader>tS") -- 映射到 <leader>tS
+-- 	--
+-- 	-- 			-- 创建一些常用的 toggle 映射
+-- 	-- 			Snacks.toggle.dim():map("<leader>tD") -- 切换 dim（背景变暗）并映射
+-- 	-- 			Snacks.toggle.option("spell", { name = "Spelling" }):map("<leader>ts") -- 切换拼写检查
+-- 	-- 			Snacks.toggle.option("wrap", { name = "Wrap" }):map("<leader>tw") -- 切换换行
+-- 	-- 			Snacks.toggle.option("relativenumber", { name = "Relative Number" }):map("<leader>tL") -- 切换相对行号
+-- 	-- 			Snacks.toggle.diagnostics():map("<leader>td") -- 切换诊断显示
+-- 	-- 			Snacks.toggle.line_number():map("<leader>tl") -- 切换绝对行号
+-- 	-- 			Snacks.toggle
+-- 	-- 				.option("conceallevel", { off = 0, on = vim.o.conceallevel > 0 and vim.o.conceallevel or 2 })
+-- 	-- 				:map("<leader>tc") -- 切换 conceallevel（隐藏文本）
+-- 	-- 			Snacks.toggle.treesitter():map("<leader>tT") -- 切换 treesitter
+-- 	-- 			Snacks.toggle
+-- 	-- 				.option("background", { off = "light", on = "dark", name = "Dark Background" })
+-- 	-- 				:map("<leader>tb") -- 切换背景（浅/深）
+-- 	-- 			Snacks.toggle.inlay_hints():map("<leader>th") -- 切换 inlay hints（内联提示）
+-- 	-- 			Snacks.toggle.indent():map("<leader>tg") -- 切换缩进可视化
+-- 	-- 			Snacks.toggle.dim():map("<leader>tD") -- 再次映射 dim（与上面重复）
+-- 	-- 			-- Toggle the profiler
+-- 	-- 			Snacks.toggle.profiler():map("<leader>tpp") -- 切换 profiler
+-- 	-- 			-- Toggle the profiler highlights
+-- 	-- 			Snacks.toggle.profiler_highlights():map("<leader>tph") -- 切换 profiler 高亮
+-- 	--
+-- 	-- 			-- 删除一些默认/重复的快捷键以避免冲突
+-- 	-- 			vim.keymap.del("n", "grn")
+-- 	-- 			vim.keymap.del("n", "gra")
+-- 	-- 			vim.keymap.del("n", "grr")
+-- 	-- 			vim.keymap.del("n", "gri")
+-- 	--
+-- 	-- 			-- 设置自定义高亮组，调整 picker 列表光标行背景色
+-- 	-- 			vim.api.nvim_set_hl(0, "SnacksPickerListCursorLine", { bg = "#313244" })
+-- 	-- 		end,
+-- 	-- 	})
+-- 	-- end,
+-- }

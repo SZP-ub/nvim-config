@@ -1,0 +1,329 @@
+---@diagnostic disable: undefined-global
+return {
+	{
+		"OXY2DEV/markview.nvim",
+		lazy = false,
+		priority = 100,
+		config = function()
+			local markview = require("markview")
+
+			markview.setup({
+				preview = {
+					auto_start = true,
+					icon_provider = "devicons",
+				},
+
+				bullets = {
+					enabled = true,
+					icons = { "●", "○", "◆", "◇" },
+					ordered = function(ctx)
+						local value = vim.trim(ctx.value)
+						local index = tonumber(value:sub(1, #value - 1))
+						return ("%d."):format(index > 1 and index or ctx.index)
+					end,
+				},
+
+				checkboxes = {
+					enabled = true,
+					unchecked = {
+						icon = "󰄱 ",
+					},
+					checked = {
+						icon = "󰱒 ",
+					},
+					custom = {
+						todo = {
+							raw = "[-]",
+							rendered = "󰥔 ",
+						},
+					},
+				},
+
+				quote = {
+					enabled = true,
+					icon = "▋",
+				},
+
+				links = {
+					enabled = true,
+				},
+
+				callouts = {
+					enabled = true,
+					styles = {
+						note = { icon = "󰋽 " },
+						tip = { icon = "󰌶 " },
+						important = { icon = "󰅾 " },
+						warning = { icon = "󰀪 " },
+						caution = { icon = "󰳦 " },
+						info = { icon = "󰋽 " },
+						success = { icon = "󰄬 " },
+						danger = { icon = "󱐌 " },
+						error = { icon = "󱐌 " },
+						bug = { icon = "󰨰 " },
+						quote = { icon = "󱆨 " },
+						example = { icon = "󰉹 " },
+					},
+				},
+
+				anti_conceal = {
+					enabled = true,
+					ignore = {
+						code_background = true,
+						sign = true,
+					},
+				},
+			})
+
+			-- ==========================================
+			-- Obsidian 日语振假名 (Furigana) 终端内联渲染
+			-- ==========================================
+			local ns = vim.api.nvim_create_namespace("obsidian_furigana")
+
+			local function render_furigana(bufnr)
+				bufnr = bufnr or vim.api.nvim_get_current_buf()
+				if not vim.api.nvim_buf_is_valid(bufnr) or vim.bo[bufnr].filetype ~= "markdown" then
+					return
+				end
+
+				-- 确保开启 conceal 隐藏符号
+				vim.opt_local.conceallevel = 2
+
+				vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
+				local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+
+				for row, line in ipairs(lines) do
+					local init = 1
+					while true do
+						-- 匹配 {汉字|假名} 格式
+						local s, e, kanji, ruby = line:find("%{([^|}]+)|([^}]+)%}", init)
+						if not s then
+							break
+						end
+
+						-- 将 お|の 拼接为 おの
+						local kana = ruby:gsub("|", "")
+						local pipe_idx = s + #kanji
+
+						-- 1. 隐藏开头的 '{'
+						pcall(vim.api.nvim_buf_set_extmark, bufnr, ns, row - 1, s - 1, {
+							end_col = s,
+							conceal = "",
+						})
+
+						-- 2. 隐藏 '|假名}' 部分
+						pcall(vim.api.nvim_buf_set_extmark, bufnr, ns, row - 1, pipe_idx, {
+							end_col = e,
+							conceal = "",
+						})
+
+						-- 3. 在其后内联附加显示淡灰色的 (假名)
+						pcall(vim.api.nvim_buf_set_extmark, bufnr, ns, row - 1, e, {
+							virt_text = { { " (" .. kana .. ")", "Comment" } },
+							virt_text_pos = "inline",
+						})
+
+						init = e + 1
+					end
+				end
+			end
+
+			-- 自动监听 Markdown 文件的进入与修改事件
+			vim.api.nvim_create_autocmd({ "BufEnter", "TextChanged", "InsertLeave" }, {
+				pattern = "*.md",
+				callback = function(args)
+					render_furigana(args.buf)
+				end,
+			})
+		end,
+	},
+
+	{
+		"dhruvasagar/vim-table-mode",
+		-- 将所有原生功能与移动指令完整注册到 keys 中
+		-- 只要按下其中任意一个按键，插件即刻被懒加载唤醒并原样触发对应逻辑
+		keys = {
+			-- ====================================================================
+			-- 1. 核心开关与格式重整
+			-- ====================================================================
+			{ "<leader>tm", "<cmd>TableModeToggle<cr>", desc = "开关表格模式" },
+			{ "<leader>tr", "<cmd>TableModeRealign<cr>", desc = "全表重新对齐" },
+
+			-- ====================================================================
+			-- 2. 纯文本转表格 (Tableize，支持普通模式与可视模式)
+			-- ====================================================================
+			{ "<leader>tt", desc = "文本转表格 (默认逗号分隔)", mode = { "n", "v" } },
+			{ "<leader>tT", desc = "文本转表格 (自定义输入分隔符)", mode = { "n", "v" } },
+
+			-- ====================================================================
+			-- 3. 单元格跨步移动 (Motions)
+			-- ====================================================================
+			{ "]|", desc = "跳转到右侧下一个单元格", mode = { "n" } },
+			{ "[|", desc = "跳转到左侧上一个单元格", mode = { "n" } },
+			{ "}|", desc = "跳转到正下方单元格", mode = { "n" } },
+			{ "{|", desc = "跳转到正上方单元格", mode = { "n" } },
+
+			-- ====================================================================
+			-- 4. 行列结构操作 (增删与重构)
+			-- ====================================================================
+			{ "<leader>tdd", desc = "删除当前行", mode = { "n" } },
+			{ "<leader>tdc", desc = "删除当前列", mode = { "n" } },
+			{ "<leader>ti", desc = "在当前位置插入新列", mode = { "n" } },
+			{ "<leader>tic", desc = "插入新列 (备用映射)", mode = { "n" } },
+
+			-- ====================================================================
+			-- 5. 排序操作
+			-- ====================================================================
+			{ "<leader>ts", desc = "按当前列内容对表格进行排序", mode = { "n" } },
+
+			-- ====================================================================
+			-- 6. 电子表格坐标与公式运算系统 (Spreadsheet & Formula)
+			-- ====================================================================
+			{ "<leader>t?", desc = "显示当前单元格行列坐标 (如 r2c3)", mode = { "n" } },
+			{ "<leader>tfa", desc = "为当前行/列添加公式", mode = { "n" } },
+			{ "<leader>tfe", desc = "执行公式求值并更新数值", mode = { "n" } },
+		},
+		init = function()
+			-- ====================================================================
+			-- 格式兼容配置 (必须位于 init，保证在按键触发载入前已写入全局变量)
+			-- ====================================================================
+			-- 确保生成的是符合 Markdown / Obsidian 标准的 |---| 语法，而非 Org 的 +---+
+			vim.g.table_mode_corner = "|"
+			vim.g.table_mode_corner_corner = "|"
+			vim.g.table_mode_header_fillchar = "-"
+
+			-- 基础交互行为
+			vim.g.table_mode_auto_align = 1
+			vim.g.table_mode_syntax = 1
+
+			-- 确保内部前缀定义与 keys 声明保持一致
+			vim.g.table_mode_map_prefix = "<leader>t"
+			vim.g.table_mode_toggle_map = "m"
+			vim.g.table_mode_tableize_map = "<leader>tt"
+			vim.g.table_mode_tableize_d_map = "<leader>tT"
+		end,
+	},
+
+	{
+		"whitestarrain/md-section-number.nvim",
+		-- ft = "markdown",
+		lazy = false,
+		config = function()
+			local md_num = require("md_section_number")
+
+			-- 1. 初始化设置（已去除导致 E33 崩溃的波浪线）
+			md_num.setup({
+				max_level = 5,
+				min_level = 2,
+				ignore_pairs = {
+					{ "```", "```" },
+					{ "<!--", "-->" },
+				},
+				toc = {
+					width = 30,
+					position = "right",
+					indent_space_number = 2,
+					header_prefix = "- ",
+				},
+			})
+
+			-- 2. 手动将 Lua 函数注册为 Neovim 原生命令（敲 :Md 时自动补全就靠这三行）
+			vim.api.nvim_create_user_command("MdUpdateNumber", md_num.update_heading_number, { desc = "自动编号" })
+			vim.api.nvim_create_user_command("MdClearNumber", md_num.clear_heading_number, { desc = "清除编号" })
+			vim.api.nvim_create_user_command("MdTocToggle", md_num.toggle_toc, { desc = "切换大纲" })
+
+			-- 3. 映射快捷键（直接调用注册好的命令）
+			vim.keymap.set("n", "<leader>mn", "<cmd>MdUpdateNumber<cr>", { desc = "Markdown: 自动排号" })
+			vim.keymap.set("n", "<leader>mc", "<cmd>MdClearNumber<cr>", { desc = "Markdown: 清除序号" })
+			vim.keymap.set("n", "<leader>mt", "<cmd>MdTocToggle<cr>", { desc = "Markdown: 切换大纲" })
+		end,
+	},
+
+	{
+		"reybits/scratch.nvim",
+		cmd = { "Scratch", "ScratchSplit" },
+		keys = {
+			{ "<leader>sco", "<cmd>Scratch<cr>", desc = "打开/切换浮动草稿本" },
+			{ "<leader>scs", "<cmd>ScratchSplit<cr>", desc = "在新分割窗口中打开草稿" },
+		},
+		opts = {
+			-- 浮动窗口外观设置
+			window = {
+				border = "rounded", -- 边框样式: 'none', 'single', 'double', 'rounded', 'solid', 'shadow'
+				width = 0.8, -- 窗口宽度占比 (0.1 ~ 1.0)
+				height = 0.8, -- 窗口高度占比 (0.1 ~ 1.0)
+				blend = 0, -- 窗口透明度 (0 ~ 100)
+			},
+
+			-- 默认文件类型（设为 nil 时继承当前激活缓冲区的 filetype，或手动指定如 'markdown' / 'lua'）
+			filetype = "markdown",
+
+			-- 行为与生命周期控制
+			persist = true, -- 关闭窗口后是否保留内容（false 则每次打开都是全新空白页）
+			auto_save = true, -- 失去焦点或退出时是否自动落盘/持久化
+
+			-- 快捷键配置（在 Scratch 缓冲区内部生效的专属映射）
+			keymaps = {
+				close = { "q", "<Esc>" }, -- 快速关闭草稿浮窗
+			},
+		},
+		config = function(_, opts)
+			require("scratch").setup(opts)
+		end,
+
+		-- 快速切换主草稿浮窗
+		map("n", "<leader>sc", "<cmd>Scratch<cr>", { desc = "Toggle Scratch Window", silent = true }),
+
+		-- 打开指定语言的草稿（例如快速测试一段 Lua）
+		map("n", "<leader>sl", function()
+			vim.cmd("Scratch")
+			vim.bo.filetype = "lua"
+		end, { desc = "Scratch Pad (Lua)", silent = true }),
+
+		-- 打开 Markdown 草稿
+		map("n", "<leader>sm", function()
+			vim.cmd("Scratch")
+			vim.bo.filetype = "markdown"
+		end, { desc = "Scratch Pad (Markdown)", silent = true }),
+	},
+
+	-- {
+	-- 	"whitestarrain/md-section-number.nvim",
+	-- 	-- ft = "markdown",
+	-- 	lazy = false,
+	-- 	main = "md_section_number",
+	-- 	-- keys 必须放在外层，作为 lazy.nvim 的插件声明属性
+	-- 	keys = {
+	-- 		{
+	-- 			"<leader>mn",
+	-- 			"<cmd>MdUpdateNumber<cr>",
+	-- 			desc = "Markdown: 自动排号/更新序号",
+	-- 		},
+	-- 		{
+	-- 			"<leader>mc",
+	-- 			"<cmd>MdClearNumber<cr>",
+	-- 			desc = "Markdown: 清除所有序号",
+	-- 		},
+	-- 		{
+	-- 			"<leader>mt",
+	-- 			"<cmd>MdTocToggle<cr>",
+	-- 			desc = "Markdown: 切换大纲目录",
+	-- 		},
+	-- 	},
+	-- 	opts = {
+	-- 		max_level = 5,
+	-- 		min_level = 2,
+	-- 		ignore_pairs = {
+	-- 			{ "```", "```" },
+	-- 			{ "~~~", "~~~" },
+	-- 			{ "<!--", "-->" },
+	-- 		},
+	-- 		toc = {
+	-- 			width = 30,
+	-- 			position = "right",
+	-- 			indent_space_number = 2,
+	-- 			header_prefix = "- ",
+	-- 		},
+	-- 	},
+	-- },
+}

@@ -1,0 +1,40 @@
+---@diagnostic disable: undefined-global
+
+return {
+	"p00f/godbolt.nvim",
+	lazy = true,
+	-- 快捷键与命令双重触发懒加载
+	cmd = {
+		"Godbolt",
+		"GodboltCompiler",
+	},
+	keys = {
+		{ "<leader>gb", "<cmd>Godbolt<cr>", desc = "打开 Godbolt 汇编预览" },
+	},
+	dependencies = {
+		"nvim-lua/plenary.nvim",
+	},
+	-- lazy.nvim 会自动将其传给 require("godbolt").setup(opts)
+	opts = {
+		languages = {
+			cpp = {
+				compiler = "g122", -- GCC 12.2 (x86-64)
+				options = {}, -- 编译参数，例如 {"-O2", "-Wall"}
+			},
+			c = {
+				compiler = "cg122", -- C GCC 12.2 (x86-64)
+				options = {},
+			},
+		},
+		auto_cleanup = true, -- 退出相关 buffer 时自动清理临时数据
+		highlight = {
+			cursor = "Visual", -- 复用 init.lua 中的橙色选区高亮
+			static = false, -- 是否高亮所有匹配行（false 为仅跟随光标高亮）
+		},
+		quickfix = {
+			enable = true, -- 编译报错自动加入 QuickFix
+			auto_open = true, -- 编译出错自动弹出错误列表
+		},
+		url = "https://godbolt.org",
+	},
+}

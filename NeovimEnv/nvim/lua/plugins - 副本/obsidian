@@ -1,0 +1,173 @@
+---@diagnostic disable: undefined-global
+return {
+	{
+		"epwalsh/obsidian.nvim",
+		version = "*", -- recommended, use latest release instead of latest commit
+		lazy = true,
+		ft = "markdown",
+		-- Replace the above line with this if you only want to load obsidian.nvim for markdown files in your vault:
+		-- event = {
+		--   -- If you want to use the home shortcut '~' here you need to call 'vim.fn.expand'.
+		--   -- E.g. "BufReadPre " .. vim.fn.expand "~" .. "/my-vault/*.md"
+		--   -- refer to `:h file-pattern` for more examples
+		--   "BufReadPre path/to/my-vault/*.md",
+		--   "BufNewFile path/to/my-vault/*.md",
+		-- },
+		dependencies = {
+			-- Required.
+			"nvim-lua/plenary.nvim",
+			-- "junegunn/fzf.vim",
+
+			-- see below for full list of optional dependencies 👇
+		},
+		opts = {
+			workspaces = {
+				{
+					name = "StoreH",
+					path = "E:/Obsidian/StoreH",
+				},
+			},
+
+			-- 存放新笔记的相对子目录。如希望直接建在仓库根目录下，设为 nil
+			notes_subdir = "notes",
+			new_notes_location = "notes_subdir",
+
+			-- 日记（Daily Notes）设置
+			daily_notes = {
+				folder = "dailies",
+				date_format = "%Y-%m-%d",
+				default_tags = { "daily-notes" },
+			},
+
+			-- 双链与补全规范
+			preferred_link_style = "wiki", -- 采用 Obsidian 标准的 [[文件名]] 格式
+			completion = {
+				nvim_cmp = true, -- 使用 nvim-cmp 自动补全双链与标签
+				min_chars = 2,
+			},
+
+			-- 自定义文件名生成逻辑（修正官方默认强制加时间戳的别扭体验）
+			---@param title string|?
+			---@return string
+			note_id_func = function(title)
+				if title ~= nil and title ~= "" then
+					-- 如果执行 :ObsidianNew 传入了标题，直接用标题命名（并支持中英文字符与中划线）
+					return title:gsub(" ", "-"):gsub("[^%w%-_一-龥]", "")
+				else
+					-- 没给标题时，回退到时间戳命名
+					return tostring(os.time())
+				end
+			end,
+
+			-- 选择器配置（用于检索笔记、标签等）
+			-- picker = {
+			-- 	name = "telescope.nvim",
+			-- 	note_mappings = {
+			-- 		new = "<C-x>",
+			-- 		insert_link = "<C-l>",
+			-- 	},
+			-- },
+
+			-- UI 与语法美化渲染（包含复选框替换、标签图标等）
+			ui = {
+				enable = true,
+			},
+
+			-- Windows 系统下打开外部 URL 链接适配
+			follow_url_func = function(url)
+				if vim.ui.open then
+					vim.ui.open(url) -- Neovim 0.10+ 原生支持跨平台打开默认浏览器
+				else
+					vim.cmd(':silent exec "!start ' .. url .. '"')
+				end
+			end,
+		},
+
+		-- 绑定日常高频操作快捷键
+		keys = {
+			{ "<leader>on", "<cmd>ObsidianNew<cr>", desc = "新建笔记" },
+			-- { "<leader>os", "<cmd>ObsidianSearch<cr>", desc = "FZF 全局检索 (Grep)" },
+			-- { "<leader>oq", "<cmd>ObsidianQuickSwitch<cr>", desc = "FZF 快速查找笔记" },
+			{ "<leader>od", "<cmd>ObsidianToday<cr>", desc = "打开今日日记 (自动套用模板)" },
+			{ "<leader>ob", "<cmd>ObsidianBacklinks<cr>", desc = "查看反向链接" },
+			{ "<leader>ot", "<cmd>ObsidianTemplate<cr>", desc = "插入模板到当前光标处" },
+			{ "<leader>oo", "<cmd>ObsidianOpen<cr>", desc = "在 Obsidian 桌面端打开" },
+		},
+
+		-- 配合 UI 渲染必备的 Vim 选项
+		init = function()
+			-- 必须设置为 1 或 2，插件的 Checkbox、链接折叠美化才能生效
+			vim.opt.conceallevel = 1
+		end,
+	},
+
+	-- {
+	-- 	"epwalsh/pomo.nvim",
+	-- 	version = "*", -- Recommended, use latest release instead of latest commit
+	-- 	lazy = true,
+	-- 	cmd = {
+	-- 		"TimerStart",
+	-- 		"TimerRepeat",
+	-- 		"TimerSession",
+	-- 		"TimerStop",
+	-- 		"TimerPause",
+	-- 		"TimerResume",
+	-- 		"TimerHide",
+	-- 		"TimerShow",
+	-- 	},
+	-- 	dependencies = {
+	-- 		-- Optional, but highly recommended if you want to use the "Default" timer
+	-- 		"rcarriga/nvim-notify",
+	-- 	},
+	-- 	opts = {
+	-- 		-- See below for full list of options 👇
+	-- 		-- 倒计时刷新频率（毫秒）
+	-- 		update_interval = 1000,
+	--
+	-- 		notifiers = {
+	-- 			{
+	-- 				name = "Default",
+	-- 				opts = {
+	-- 					-- 设为 true 时，右上角会常驻一个悬浮窗实时显示倒计时
+	-- 					sticky = true,
+	-- 					title_icon = "󱎫",
+	-- 					text_icon = "󰄉",
+	-- 					-- 如果终端没有安装 Nerd Font，可换成普通 Emoji：
+	-- 					-- title_icon = "⏳",
+	-- 					-- text_icon = "⏱️",
+	-- 				},
+	-- 			},
+	-- 			-- 倒计时结束时触发操作系统原生通知
+	-- 			-- { name = "System" },
+	-- 		},
+	--
+	-- 		timers = {
+	-- 			Break = {
+	-- 				{ name = "System" },
+	-- 			},
+	-- 		},
+	--
+	-- 		-- 预设番茄工作法序列（25分钟专注 + 5分钟短休）
+	-- 		sessions = {
+	-- 			pomodoro = {
+	-- 				{ name = "Work", duration = "25m" },
+	-- 				{ name = "Short Break", duration = "5m" },
+	-- 				{ name = "Work", duration = "25m" },
+	-- 				{ name = "Short Break", duration = "5m" },
+	-- 				{ name = "Work", duration = "25m" },
+	-- 				{ name = "Long Break", duration = "15m" },
+	-- 			},
+	-- 		},
+	-- 	},
+	-- },
+
+	-- 在 lua/plugins/obsidian.lua 的 return 配置块底部加入：
+	init = function()
+		vim.api.nvim_create_autocmd("FileType", {
+			pattern = "markdown",
+			callback = function()
+				vim.opt_local.conceallevel = 2
+			end,
+		})
+	end,
+}
