@@ -52,8 +52,8 @@ return {
 
 	{
 		"sainnhe/gruvbox-material",
-		-- lazy = false,
-		event = "VeryLazy",
+		lazy = false,
+		-- event = "VeryLazy",
 		priority = 1000,
 		config = function()
 			-- 开启终端真彩色
@@ -166,6 +166,8 @@ return {
 						"Trouble",
 						"alpha",
 						"snippets",
+						"noice", -- ★ 新增
+						"notify", -- ★ 新增
 					},
 				},
 			})
@@ -479,6 +481,30 @@ return {
 					lualine_b = { { "branch", icon = "" }, { "filename", cond = hide_in_width } },
 					lualine_c = {},
 					lualine_x = {
+						-- ★ 新增：显示宏录制状态（如 recording @q）
+						{
+							function()
+								local ok, noice = pcall(require, "noice")
+								return ok and noice.api.status.mode.get() or ""
+							end,
+							cond = function()
+								local ok, noice = pcall(require, "noice")
+								return ok and noice.api.status.mode.has()
+							end,
+							color = { fg = "#d35307", gui = "bold" },
+						},
+						-- ★ 新增：显示未敲完的复合命令（如 d2 / <leader>）
+						{
+							function()
+								local ok, noice = pcall(require, "noice")
+								return ok and noice.api.status.command.get() or ""
+							end,
+							cond = function()
+								local ok, noice = pcall(require, "noice")
+								return ok and noice.api.status.command.has()
+							end,
+							color = { fg = "#458587" },
+						},
 						diag_error,
 						diag_warn,
 						diag_info,

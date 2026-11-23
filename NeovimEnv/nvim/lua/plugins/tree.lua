@@ -68,21 +68,21 @@ return {
 
 	-- [非目标功能：已注释保留]
 	-- 代码结构标签栏（依赖 ctags，主要面向 C/C++；LaTeX 专属大纲使用 VimTeX TOC，Markdown 使用 Trouble）
-	-- {
-	-- 	"preservim/tagbar",
-	-- 	keys = {
-	-- 		{
-	-- 			"<leader>o",
-	-- 			"<cmd>TagbarToggle<CR>",
-	-- 			desc = "切换 Tagbar 代码结构窗口",
-	-- 		},
-	-- 	},
-	-- 	config = function()
-	-- 		vim.g.tagbar_autofocus = 1
-	-- 		vim.g.tagbar_width = 20
-	-- 		vim.g.tagbar_sort = 0
-	-- 	end,
-	-- },
+	{
+		"preservim/tagbar",
+		keys = {
+			{
+				"<leader>o",
+				"<cmd>TagbarToggle<CR>",
+				desc = "切换 Tagbar 代码结构窗口",
+			},
+		},
+		config = function()
+			vim.g.tagbar_autofocus = 1
+			vim.g.tagbar_width = 20
+			vim.g.tagbar_sort = 0
+		end,
+	},
 	-- {
 	-- 	"stevearc/aerial.nvim",
 	-- 	opts = {

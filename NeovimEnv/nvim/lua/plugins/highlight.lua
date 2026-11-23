@@ -11,6 +11,7 @@ return {
 		build = ":TSUpdate",
 		dependencies = {
 			"nvim-treesitter/nvim-treesitter-textobjects",
+			"nvim-treesitter/playground",
 		},
 		config = function()
 			require("nvim-treesitter.install").compilers = { "cl" }
@@ -26,17 +27,17 @@ return {
 					"regex", -- ★ 新增：Noice 搜索与正则高亮必须依赖
 					"bash", -- ★ 新增：Noice 终端命令过滤高亮依赖
 					-- 非目标语言解析器保持注释：
-					-- "diff",
+					"diff",
 					-- "cmake",
-					-- "bash",
+					"bash",
 					-- "c",
 					-- "cpp",
-					-- "vimdoc",
+					"vimdoc",
 					-- "query",
-					-- "javascript",
+					"javascript",
 					-- "html",
-					-- "json",
-					-- "python",
+					"json",
+					"python",
 					-- "typescript",
 					-- "java",
 				},
@@ -50,6 +51,10 @@ return {
 				},
 
 				indent = {
+					enable = true,
+				},
+
+				playground = {
 					enable = true,
 				},
 
@@ -180,4 +185,3 @@ return {
 		end,
 	},
 }
-

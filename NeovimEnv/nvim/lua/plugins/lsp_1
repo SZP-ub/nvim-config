@@ -12,6 +12,7 @@ local function smart_tabout()
 	local before = line:sub(1, col)
 	local after = line:sub(col + 1)
 
+	-- 支持的成对符号定义（可按需增减）
 	local pairs_list = {
 		{ "(", ")" },
 		{ "[", "]" },
@@ -19,7 +20,7 @@ local function smart_tabout()
 		{ '"', '"' },
 		{ "'", "'" },
 		{ "`", "`" },
-		{ "$", "$" },
+		{ "$", "$" }, -- 完美兼容 LaTeX / Markdown 行内数学公式
 	}
 
 	local nearest_pos = nil
@@ -28,6 +29,7 @@ local function smart_tabout()
 		local open_pat = vim.pesc(p[1])
 		local close_pat = vim.pesc(p[2])
 
+		-- 判定准则：光标左侧存在未闭合的前符号，且右侧存在对应的后符号
 		if before:find(open_pat) then
 			local pos = after:find(close_pat)
 			if pos then
@@ -39,6 +41,7 @@ local function smart_tabout()
 	end
 
 	if nearest_pos then
+		-- 将光标精准平移至该闭合符号的外侧
 		vim.api.nvim_win_set_cursor(0, { row, col + nearest_pos })
 		return true
 	end
@@ -68,7 +71,7 @@ return {
 	},
 
 	---------------------------------------------------------------------------
-	-- 2. nvim-lspconfig
+	-- 2. nvim-lspconfig：现代原生 API 写法
 	---------------------------------------------------------------------------
 	{
 		"neovim/nvim-lspconfig",
@@ -84,6 +87,7 @@ return {
 				return
 			end
 
+			-- 全局诊断 UI 配置
 			vim.diagnostic.config({
 				severity_sort = true,
 				underline = { severity = vim.diagnostic.severity.ERROR },
@@ -100,6 +104,7 @@ return {
 				update_in_insert = false,
 			})
 
+			-- LspAttach 按键映射
 			vim.api.nvim_create_autocmd("LspAttach", {
 				group = vim.api.nvim_create_augroup("user-lsp-attach", { clear = true }),
 				callback = function(event)
@@ -116,19 +121,36 @@ return {
 						)
 					end
 
+					-- 跳转到定义处（如光标下的函数实现、变量被创建赋值的地方）
 					map("gd", vim.lsp.buf.definition, "跳转到定义")
+
+					-- 跳转到接口的具体实现（面向对象语言中，从抽象接口/类跳转到具体实现它的代码处）
 					map("gi", vim.lsp.buf.implementation, "跳转到实现")
+
+					-- 跳转到类型定义处（跳转到光标所在变量的类型声明/类定义，而非变量本身）
 					map("grt", vim.lsp.buf.type_definition, "跳转到类型定义")
+
+					-- 符号重命名（安全重命名函数、变量或类名，整个项目相关引用会同步修改）
 					map("grn", vim.lsp.buf.rename, "变量/符号重命名")
+
+					-- 快速修复 / 代码操作（弹出当前报错或警告的自动修复方案，支持普通模式与可视模式）
 					map("gra", vim.lsp.buf.code_action, "代码操作与自动修复", { "n", "x" })
+
+					-- 跳转到声明处（常见于 C/C++ 等头文件与源文件分离的语言，跳到声明原型处）
 					map("grd", vim.lsp.buf.declaration, "跳转到声明")
+
+					-- 跳转到上一个诊断信息（移动到上一个报错 Error 或警告 Warning 处）
 					map("[g", vim.diagnostic.goto_prev, "跳转到上一个错误/警告")
+
+					-- 跳转到下一个诊断信息（移动到下一个报错 Error 或警告 Warning 处）
 					map("]g", vim.diagnostic.goto_next, "跳转到下一个错误/警告")
 
+					-- 跳转到上一个严重错误 (新 API)
 					map("g[", function()
 						vim.diagnostic.jump({ count = -1, severity = vim.diagnostic.severity.ERROR, float = true })
 					end, "跳转到上一个错误")
 
+					-- 跳转到下一个严重错误 (新 API)
 					map("g]", function()
 						vim.diagnostic.jump({ count = 1, severity = vim.diagnostic.severity.ERROR, float = true })
 					end, "跳转到下一个错误")
@@ -183,11 +205,13 @@ return {
 				capabilities = capabilities,
 			})
 
+			-- 仅安装目标语言的 LSP
 			mason_lspconfig.setup({
 				ensure_installed = { "lua_ls", "marksman", "texlab", "basedpyright", "jsonls", "clangd" },
 				automatic_installation = true,
 			})
 
+			-- Lua 语言服务专属配置
 			vim.lsp.config("lua_ls", {
 				settings = {
 					Lua = {
@@ -202,14 +226,17 @@ return {
 	},
 
 	---------------------------------------------------------------------------
-	-- 3. nvim-cmp 智能补全（全盘接管编辑区、命令行、模糊搜索与历史记录）
+	-- 3. nvim-cmp 智能补全（含类 Wilder 风格命令行补全）
 	---------------------------------------------------------------------------
 	{
 		"hrsh7th/nvim-cmp",
 		event = { "InsertEnter", "CmdlineEnter" },
 		dependencies = {
 			"hrsh7th/cmp-nvim-lsp",
+			"hrsh7th/cmp-cmdline", -- 配合 Noice 提供命令行补全
+			"hrsh7th/cmp-nvim-lsp-document-symbol",
 			"saadparwaiz1/cmp_luasnip",
+			"dmitmel/cmp-cmdline-history",
 			"hrsh7th/cmp-buffer",
 			"hrsh7th/cmp-path",
 			"L3MON4D3/LuaSnip",
@@ -218,9 +245,6 @@ return {
 			{ "micangl/cmp-vimtex", ft = { "latex", "tex", "markdown", "markdown_inline" } },
 			{ "hrsh7th/cmp-omni", ft = { "tex", "latex" } },
 			"rasulomaroff/cmp-bufname",
-			-- 核心新增：接管命令行与命令历史
-			"hrsh7th/cmp-cmdline",
-			"dmitmel/cmp-cmdline-history",
 		},
 		config = function()
 			local cmp = safe_require("cmp")
@@ -229,21 +253,12 @@ return {
 			end
 			local luasnip = safe_require("luasnip")
 
-			-- if luasnip then
-			-- 	pcall(require("luasnip.loaders.fromsnipmate").lazy_load, {
-			-- 		paths = { vim.fn.stdpath("config") .. "/snippets" },
-			-- 	})
-			-- end
-
-			-- 修正后的标准写法：
 			if luasnip then
-				local ok_snip, snipmate = pcall(require, "luasnip.loaders.from_snipmate")
-				if ok_snip then
-					snipmate.lazy_load({
-						paths = { vim.fn.stdpath("config") .. "/snippets" },
-					})
-				end
+				pcall(require("luasnip.loaders.from_snipmate").lazy_load, {
+					paths = { vim.fn.stdpath("config") .. "/snippets" },
+				})
 			end
+
 			local kind_icons = {
 				Text = "󰉿",
 				Method = "󰆧",
@@ -272,7 +287,6 @@ return {
 				TypeParameter = "󰊄",
 			}
 
-			-- A. 基础编辑区补全规则
 			cmp.setup({
 				snippet = {
 					expand = function(args)
@@ -316,10 +330,8 @@ return {
 							luasnip = "[Snip]",
 							buffer = "[Buf]",
 							path = "[Path]",
-							cmdline_history = "[Hist]",
 							nvim_lsp = "[LSP]",
 							vimtex = "[Vimtex]",
-							cmdline = "[Cmd]",
 							omni = (vim.inspect(vim_item.menu):gsub('%"', "")),
 						})[entry.source.name] or ""
 						return vim_item
@@ -371,156 +383,273 @@ return {
 				}),
 				experimental = { ghost_text = true },
 			})
+			-- =================================================================
+			-- 类 Wilder 风格命令行补全：视觉 + 状态机 + 增强补全源与模糊匹配
+			-- =================================================================
+			vim.opt.pumheight = 15
+			-- ★ 关键：开启 Neovim 原生命令行模糊检索（Neovim 0.10+ 支持）
+			pcall(function()
+				vim.opt.wildoptions:append("fuzzy")
+			end)
 
-			cmp.setup.cmdline({ "/", "?", ":" }, {
-				mapping = cmp.mapping.preset.cmdline(),
-				formatting = {
-					fields = { "kind", "abbr", "menu" },
-					format = function(entry, vim_item)
-						-- 为命令行补全定制专属精美图标，替换生硬的 Tt/Aa
-						local cmd_icons = {
-							cmdline = " ",
-							cmdline_history = " ",
-							path = " ",
-						}
-						vim_item.kind = cmd_icons[entry.source.name] or " "
-						-- vim_item.menu = ({
-						-- 	cmdline = "[Cmd]",
-						-- 	cmdline_history = "[Hist]",
-						-- 	path = "[Path]",
-						-- })[entry.source.name] or ""
+			-- 1. 还原 Wilder 青色命中高亮与选中行背景
+			local function apply_wilder_cmp_hl()
+				pcall(vim.api.nvim_set_hl, 0, "CmpItemAbbrMatch", { fg = "#00afaf", bold = true })
+				pcall(vim.api.nvim_set_hl, 0, "CmpItemAbbrMatchFuzzy", { fg = "#00afaf", bold = true })
+				pcall(vim.api.nvim_set_hl, 0, "WilderCmpSel", { fg = "#fbf1c7", bg = "#4e4e4e", bold = true })
+			end
+			apply_wilder_cmp_hl()
+			vim.api.nvim_create_autocmd("ColorScheme", {
+				group = vim.api.nvim_create_augroup("user-cmp-wilder-hl", { clear = true }),
+				callback = apply_wilder_cmp_hl,
+			})
 
-						vim_item.menu = ({
-							cmdline = "[Cmd]",
-							cmdline_history = "[Hist]",
-							nvim_lsp = "[LSP]",
-							path = "[Path]",
-							buffer = "[Buf]",
-							luasnip = "[Snip]",
-							vimtex = "[Vimtex]",
-							omni = (vim.inspect(vim_item.menu):gsub('%"', "")),
-						})[entry.source.name] or ""
+			-- 2. 弹窗样式：圆角边框 + 滚动条 + 选中行高亮
+			local cmdline_window = {
+				completion = cmp.config.window.bordered({
+					border = "rounded",
+					scrollbar = true,
+					winhighlight = "Normal:NormalFloat,FloatBorder:FloatBorder,CursorLine:WilderCmpSel,Search:None",
+					side_padding = 1,
+				}),
+			}
 
-						-- 截断超长命令历史，防止横条撑爆屏幕
-						local max_width = 15
-						if #vim_item.abbr > max_width then
-							vim_item.abbr = vim_item.abbr:sub(1, max_width - 3) .. "..."
+			-- 3. 左侧图标与来源标签（新增 Hist 历史图标与 Sym 语义符号图标）
+			local devicons = safe_require("nvim-web-devicons")
+			local cmdline_formatting = {
+				fields = { "kind", "abbr", "menu" },
+				format = function(entry, vim_item)
+					local source = entry.source.name
+					if source == "path" then
+						local label = vim_item.abbr or ""
+						if label:sub(-1) == "/" or label:sub(-1) == "\\" then
+							vim_item.kind = "󰉋"
+							vim_item.kind_hl_group = "Directory"
+						elseif devicons then
+							local filename = label:match("[^/\\]+$") or label
+							local ext = filename:match("%.([^%.]+)$") or ""
+							local icon, hl = devicons.get_icon(filename, ext, { default = true })
+							vim_item.kind = icon or ""
+							vim_item.kind_hl_group = hl
+						else
+							vim_item.kind = ""
 						end
-						return vim_item
+						vim_item.menu = "[Path]"
+					elseif source == "cmdline" then
+						vim_item.kind = ""
+						vim_item.kind_hl_group = "CmpItemAbbrMatch"
+						vim_item.menu = "[Cmd]"
+					elseif source == "cmdline_history" then
+						vim_item.kind = ""
+						vim_item.kind_hl_group = "Comment"
+						vim_item.menu = "[Hist]"
+					elseif source == "nvim_lsp_document_symbol" then
+						vim_item.kind = kind_icons[vim_item.kind] or "󰌗"
+						vim_item.menu = "[Sym]"
+					elseif source == "buffer" then
+						vim_item.kind = ""
+						vim_item.kind_hl_group = "CmpItemAbbrMatch"
+						vim_item.menu = "[Find]"
+					else
+						vim_item.kind = ""
+						vim_item.menu = ""
+					end
+					return vim_item
+				end,
+			}
+
+			-- 4. 全量模糊匹配策略（彻底放开部分/跨字模糊）
+			local cmdline_matching = {
+				disallow_fuzzy_matching = false,
+				disallow_fullfuzzy_matching = false,
+				disallow_partial_fuzzy_matching = false,
+				disallow_partial_matching = false,
+				disallow_prefix_unmatching = false,
+				disallow_symbol_nonprefix_matching = false,
+			}
+
+			-- 5. 历史记录降噪过滤器：剔除 w / q / wq / qa! 等极短无复用价值的命令
+			local function filter_short_history(entry)
+				local text = vim.trim(entry:get_word() or "")
+				if #text <= 3 and text:match("^[wqax!]+$") then
+					return false
+				end
+				return true
+			end
+
+			-- 6. 按键状态机：noselect + 选中即上屏 + 回车一步执行
+			local cmdline_mapping = cmp.mapping.preset.cmdline({
+				["<Tab>"] = {
+					c = function()
+						if cmp.visible() then
+							cmp.select_next_item({ behavior = cmp.SelectBehavior.Insert })
+						else
+							cmp.complete()
+						end
 					end,
 				},
-
-				sources = {
-					{ name = "lsp" },
-					{ name = "snippets" },
-					{ name = "cmdline" },
-					{ name = "cmdline_history" },
-					{
-						name = "rg",
-						keyword_length = 3,
-						option = {
-							additional_arguments = "--hidden --max-depth 2",
-							pattern = "[a-zA-Z_]+",
-							cwd = ".",
-							debounce = 500,
-							context_before = 2,
-							context_after = 4,
-						},
-					},
-					{
-						name = "buffer",
-						option = {
-							get_bufnrs = function()
-								local bufs = {}
-								for _, win in ipairs(vim.api.nvim_list_wins()) do
-									bufs[vim.api.nvim_win_get_buf(win)] = true
-								end
-								return vim.tbl_keys(bufs)
-							end,
-						},
-					},
-					{ name = "path" },
-					{ name = "vimtex" },
+				["<S-Tab>"] = {
+					c = function()
+						if cmp.visible() then
+							cmp.select_prev_item({ behavior = cmp.SelectBehavior.Insert })
+						else
+							cmp.complete()
+						end
+					end,
+				},
+				["<Down>"] = {
+					c = function(fallback)
+						if cmp.visible() then
+							cmp.select_next_item({ behavior = cmp.SelectBehavior.Insert })
+						else
+							fallback()
+						end
+					end,
+				},
+				["<Up>"] = {
+					c = function(fallback)
+						if cmp.visible() then
+							cmp.select_prev_item({ behavior = cmp.SelectBehavior.Insert })
+						else
+							fallback()
+						end
+					end,
+				},
+				["<CR>"] = {
+					c = function(fallback)
+						if cmp.visible() then
+							cmp.close()
+						end
+						fallback()
+					end,
+				},
+				["<C-e>"] = {
+					c = cmp.mapping.abort(),
 				},
 			})
-			-- B. 搜索模式（/ 与 ?）：同时支持当前 Buffer 单词与历史搜索词
+
+			-- 命令行搜索补全（/ 与 ?）：LSP 语义符号 + 当前文档词条 + 历史搜索
 			cmp.setup.cmdline({ "/", "?" }, {
-				mapping = cmp.mapping.preset.cmdline(),
-				sources = {
-					{ name = "lsp" },
-					{ name = "cmdline" },
-					{ name = "cmdline_history" },
-					{
-						name = "rg",
-						keyword_length = 3,
-						option = {
-							additional_arguments = "--hidden --max-depth 2",
-							pattern = "[a-zA-Z_]+",
-							cwd = ".",
-							debounce = 500,
-							context_before = 2,
-							context_after = 4,
-						},
-					},
-					{
-						name = "buffer",
-						option = {
-							get_bufnrs = function()
-								local bufs = {}
-								for _, win in ipairs(vim.api.nvim_list_wins()) do
-									bufs[vim.api.nvim_win_get_buf(win)] = true
-								end
-								return vim.tbl_keys(bufs)
-							end,
-						},
-					},
-					{ name = "path" },
-				},
+				completion = { completeopt = "menu,menuone,noselect" },
+				window = cmdline_window,
+				formatting = cmdline_formatting,
+				matching = cmdline_matching,
+				mapping = cmdline_mapping,
+				sources = cmp.config.sources({
+					{ name = "nvim_lsp_document_symbol", priority = 1000, max_item_count = 10 },
+					{ name = "buffer", priority = 700, max_item_count = 10 },
+					{ name = "cmdline_history", priority = 400, max_item_count = 6 },
+				}),
 			})
 
-			-- `:` cmdline setup.
+			-- 命令行指令与路径补全（:）：路径优先，其次指令 + 降噪历史
 			cmp.setup.cmdline(":", {
-				mapping = cmp.mapping.preset.cmdline(),
+				completion = { completeopt = "menu,menuone,noselect" },
+				window = cmdline_window,
+				formatting = cmdline_formatting,
+				matching = cmdline_matching,
+				mapping = cmdline_mapping,
 				sources = cmp.config.sources({
-					{ name = "cmdline_history" },
-					{ name = "cmdline" },
-					{ name = "lsp" },
-					{ name = "buffer" },
-					{ name = "rg" },
-					{ name = "path" },
+					{ name = "path", priority = 1000 },
 				}, {
 					{
 						name = "cmdline",
-						option = {
-							ignore_cmds = { "Man", "!" },
-						},
+						priority = 900,
+						option = { ignore_cmds = { "Man", "!" } },
 					},
 					{
-						name = "rg",
-						keyword_length = 3,
-						option = {
-							additional_arguments = "--hidden --max-depth 2",
-							pattern = "[a-zA-Z_]+",
-							cwd = ".",
-							debounce = 500,
-							context_before = 2,
-							context_after = 4,
-						},
-					},
-					{
-						name = "buffer",
-						option = {
-							get_bufnrs = function()
-								local bufs = {}
-								for _, win in ipairs(vim.api.nvim_list_wins()) do
-									bufs[vim.api.nvim_win_get_buf(win)] = true
-								end
-								return vim.tbl_keys(bufs)
-							end,
-						},
+						name = "cmdline_history",
+						priority = 500,
+						max_item_count = 8,
+						entry_filter = filter_short_history,
 					},
 				}),
 			})
 		end,
 	},
+
+	---------------------------------------------------------------------------
+	-- 4. wilder.nvim（已停用：改由 noice.nvim + 类 Wilder 风格 cmp-cmdline 接管）
+	---------------------------------------------------------------------------
+	-- {
+	-- 	"gelguy/wilder.nvim",
+	-- 	event = "CmdlineEnter",
+	-- 	dependencies = { { "romgrk/fzy-lua-native", build = "make" } },
+	-- 	config = function()
+	-- 		local wilder = safe_require("wilder")
+	-- 		if not wilder then
+	-- 			return
+	-- 		end
+	--
+	-- 		wilder.setup({ modes = { ":", "/", "?" } })
+	-- 		wilder.set_option("next_key", 0)
+	-- 		wilder.set_option("previous_key", 0)
+	-- 		wilder.set_option("accept_key", 0)
+	-- 		wilder.set_option("reject_key", 0)
+	--
+	-- 		local highlighters = {}
+	-- 		if type(wilder.pcre2_highlighter) == "function" then
+	-- 			table.insert(highlighters, wilder.pcre2_highlighter())
+	-- 		end
+	-- 		table.insert(highlighters, wilder.basic_highlighter())
+	--
+	-- 		local cmdline_pl = wilder.cmdline_pipeline({
+	-- 			fuzzy = 1,
+	-- 			fuzzy_filter = (type(wilder.lua_fzy_filter) == "function" and wilder.lua_fzy_filter())
+	-- 				or wilder.vim_fuzzy_filter(),
+	-- 		})
+	-- 		local search_pl = wilder.search_pipeline()
+	--
+	-- 		wilder.set_option(
+	-- 			"pipeline",
+	-- 			wilder.branch(
+	-- 				{ wilder.check(function(_, x)
+	-- 					return vim.fn.empty(x) == 1
+	-- 				end), wilder.history(15) },
+	-- 				cmdline_pl,
+	-- 				search_pl
+	-- 			)
+	-- 		)
+	--
+	-- 		local renderer = wilder.popupmenu_renderer(wilder.popupmenu_border_theme({
+	-- 			highlights = { border = "Normal", accent = "WilderAccent", selected_accent = "WilderSelectedAccent" },
+	-- 			highlighter = highlighters,
+	-- 			left = { " ", wilder.popupmenu_devicons() },
+	-- 			right = { " ", wilder.popupmenu_scrollbar() },
+	-- 			max_height = 15,
+	-- 			pumblend = 0,
+	-- 		}))
+	-- 		wilder.set_option("renderer", renderer)
+	--
+	-- 		pcall(vim.api.nvim_set_hl, 0, "WilderAccent", { fg = "#00afaf" })
+	-- 		pcall(vim.api.nvim_set_hl, 0, "WilderSelectedAccent", { fg = "#00afaf", bg = "#4e4e4e" })
+	--
+	-- 		vim.api.nvim_set_keymap(
+	-- 			"c",
+	-- 			"<Tab>",
+	-- 			"wilder#in_context() ? wilder#next() : '<Tab>'",
+	-- 			{ noremap = true, expr = true, silent = true }
+	-- 		)
+	-- 		vim.api.nvim_set_keymap(
+	-- 			"c",
+	-- 			"<S-Tab>",
+	-- 			"wilder#in_context() ? wilder#previous() : '<C-d>'",
+	-- 			{ noremap = true, expr = true, silent = true }
+	-- 		)
+	-- 		vim.api.nvim_set_keymap(
+	-- 			"c",
+	-- 			"<Down>",
+	-- 			"wilder#in_context() ? wilder#next() : '<Down>'",
+	-- 			{ noremap = true, expr = true, silent = true }
+	-- 		)
+	-- 		vim.api.nvim_set_keymap(
+	-- 			"c",
+	-- 			"<Up>",
+	-- 			"wilder#in_context() ? wilder#previous() : '<Up>'",
+	-- 			{ noremap = true, expr = true, silent = true }
+	-- 		)
+	--
+	-- 		pcall(vim.cmd, "silent! UpdateRemotePlugins")
+	-- 	end,
+	-- },
 }
